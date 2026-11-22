@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]   # SPDX licence string
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "livecaptions"
 version = "0.1.0"
 description = "Live lecture captions with whisper.cpp or faster-whisper, built to run on battery"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "PySide6-Essentials>=6.7",
     "numpy>=1.26",

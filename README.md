@@ -2,10 +2,10 @@
 
 Live lecture captions on a laptop running on battery, from the microphone or from what the laptop plays.
 Everything runs locally, with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (GPU through Vulkan or Metal)
-or [faster-whisper](https://github.com/SYSTRAN/faster-whisper). The plan behind it is [../PLAN.md](../PLAN.md).
+or [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
 
 - **Sources**: microphone (Windows, macOS) or system audio (Windows WASAPI loopback; macOS 14.2+ Core Audio process
-  tap, all audio or chosen apps — written but not yet built or run on a Mac)
+  tap, all audio or chosen apps — built and smoke-tested on CI, not yet used on a real Mac)
 - **Streaming**, three policies:
   - *LocalAgreement-n*: text turns final (white) about 1.4 s after it is spoken; the unfinished tail is grey.
     The buffer is cut at the end of final Whisper segments, at pauses (T2), and at its quietest point when long (T3).
@@ -33,8 +33,8 @@ python -m venv .venv
 .venv\Scripts\python -m livecaptions
 ```
 
-On macOS: `python scripts/build_native.py` builds with Metal and the process tap. The macOS code has not been built or
-run yet (no Mac here; the CI workflow below needs a GitHub remote). macOS asks for permission to use the microphone and
+On macOS (13.3 or later): `python scripts/build_native.py` builds with Metal and the process tap. CI builds it on
+macOS 26 arm64 and opens the tap once; nobody has used it with real audio yet. macOS asks for permission to use the microphone and
 to record system audio; when the app runs from a terminal, the permission goes to the terminal app, and a packaged
 `.app` (M4) will carry the usage strings macOS expects.
 
@@ -109,5 +109,11 @@ tests/
 
 ## Not done yet
 
-Building and testing on a Mac (the process tap is untested code); packaging (PyInstaller, with the macOS
+Trying it on a real Mac (CI only builds it and opens the tap once); packaging (PyInstaller, with the macOS
 `Info.plist` permission strings) and a first-run dialog; optional automatic adaptation when inference falls behind.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). `lc_native` links in whisper.cpp and ggml (MIT) and miniaudio (public domain or MIT-0);
+a packaged build has to ship their notices too. The TEN VAD library is not part of this repository: it is downloaded on
+request and keeps its own licence.
