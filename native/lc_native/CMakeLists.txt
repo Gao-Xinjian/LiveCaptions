@@ -6,11 +6,11 @@
 # whisper.cpp comes from WHISPER_DIR if it exists (e.g. a sibling checkout), otherwise it is fetched at the pinned commit.
 
 cmake_minimum_required(VERSION 3.21)
-# macOS: microphone capture works from 13.0; the process tap is used only on 14.2+ (checked at run time)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "oldest macOS to run on")
+# macOS: 13.3 for the Accelerate BLAS calls in ggml; the process tap is used only on 14.2+ (checked at run time)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3" CACHE STRING "oldest macOS to run on")
 project(lc_native C CXX)
 if (APPLE)
-    enable_language(OBJCXX)
+    enable_language(OBJC OBJCXX)   # OBJC too: without it CMake compiles ggml's .m files as Objective-C++
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
