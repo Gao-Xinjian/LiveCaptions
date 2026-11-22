@@ -1,0 +1,74 @@
+# Builds lc_native and runs the tests on Windows and macOS (Apple Silicon).
+# CI cannot test real capture, the GPU or power (PLAN.md §17.1): native builds here are CPU/Metal compile checks
+# (on macOS this also compiles the Core Audio process tap), and the end-to-end tests transcribe whisper.cpp's sample
+# WAV on the CPU with the tiny models of both backends. The macOS tap test skips if the runner denies the tap.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            gpu: cpu
+          - os: macos-14
+            gpu: metal
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python packages
+        run: python -m pip install -e ".[dev,chinese,audio-formats,faster-whisper]"
+
+      - name: Build lc_native (whisper.cpp fetched at the pinned commit)
+        run: python scripts/build_native.py --gpu ${{ matrix.gpu }} --portable
+
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: ci-models
+          key: models-tiny-q5_1-fw-tiny
+
+      - name: Download the tiny models
+        shell: bash
+        run: |
+          python -c "from huggingface_hub import hf_hub_download; hf_hub_download('ggerganov/whisper.cpp', 'ggml-tiny-q5_1.bin', local_dir='ci-models')"
+          python -c "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-tiny', local_dir='ci-models/fw-tiny', allow_patterns=['*.json', '*.bin', '*.txt'])"
+
+      - name: Import the UI offscreen
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "import livecaptions.ui.app, livecaptions.main; print('ui ok')"
+
+      - name: Tests
+        shell: bash
+        env:
+          LC_TEST_MODEL: ci-models/ggml-tiny-q5_1.bin
+          LC_TEST_FW_MODEL: ci-models/fw-tiny
+          LC_TEST_WAV: build/_deps/whisper-src/samples/jfk.wav
+          LC_TEST_DEVICE: cpu
+          LC_TEST_TEN_DOWNLOAD: '1'
+        run: python -m pytest -v -rs
+
+      - name: Replay the sample with each policy (prints latency and load)
+        shell: bash
+        run: |
+          for p in local_agreement vad_chunk sliding_window; do
+            python tools/replay.py build/_deps/whisper-src/samples/jfk.wav --model ci-models/ggml-tiny-q5_1.bin --vad energy --cpu --speed 0 --config none.toml --set stream.policy=$p
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lc_native-${{ matrix.os }}
+          path: livecaptions/bin/

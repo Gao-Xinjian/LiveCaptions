@@ -1,0 +1,412 @@
+{
+ "version": 1,
+ "models": [
+  {
+   "id": "tiny-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-tiny-q5_1.bin"
+   ],
+   "size": 32152673,
+   "quant": "q5_1",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "tiny"
+  },
+  {
+   "id": "tiny-q8_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-tiny-q8_0.bin"
+   ],
+   "size": 43537433,
+   "quant": "q8_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "tiny"
+  },
+  {
+   "id": "tiny",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-tiny.bin"
+   ],
+   "size": 77691713,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "tiny"
+  },
+  {
+   "id": "tiny.en-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-tiny.en-q5_1.bin"
+   ],
+   "size": 32166155,
+   "quant": "q5_1",
+   "multilingual": false,
+   "can_translate": false,
+   "family": "tiny"
+  },
+  {
+   "id": "base-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-base-q5_1.bin"
+   ],
+   "size": 59707625,
+   "quant": "q5_1",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "base"
+  },
+  {
+   "id": "base-q8_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-base-q8_0.bin"
+   ],
+   "size": 81768585,
+   "quant": "q8_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "base"
+  },
+  {
+   "id": "base",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-base.bin"
+   ],
+   "size": 147951465,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "base"
+  },
+  {
+   "id": "base.en-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-base.en-q5_1.bin"
+   ],
+   "size": 59721011,
+   "quant": "q5_1",
+   "multilingual": false,
+   "can_translate": false,
+   "family": "base"
+  },
+  {
+   "id": "base.en",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-base.en.bin"
+   ],
+   "size": 147964211,
+   "quant": "f16",
+   "multilingual": false,
+   "can_translate": false,
+   "family": "base"
+  },
+  {
+   "id": "small-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-small-q5_1.bin"
+   ],
+   "size": 190085487,
+   "quant": "q5_1",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "small"
+  },
+  {
+   "id": "small-q8_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-small-q8_0.bin"
+   ],
+   "size": 264464607,
+   "quant": "q8_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "small"
+  },
+  {
+   "id": "small",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-small.bin"
+   ],
+   "size": 487601967,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "small"
+  },
+  {
+   "id": "small.en-q5_1",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-small.en-q5_1.bin"
+   ],
+   "size": 190098681,
+   "quant": "q5_1",
+   "multilingual": false,
+   "can_translate": false,
+   "family": "small"
+  },
+  {
+   "id": "medium-q5_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-medium-q5_0.bin"
+   ],
+   "size": 539212467,
+   "quant": "q5_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "medium"
+  },
+  {
+   "id": "medium-q8_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-medium-q8_0.bin"
+   ],
+   "size": 823369779,
+   "quant": "q8_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "medium"
+  },
+  {
+   "id": "medium",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-medium.bin"
+   ],
+   "size": 1533763059,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "medium"
+  },
+  {
+   "id": "medium.en-q5_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-medium.en-q5_0.bin"
+   ],
+   "size": 539225533,
+   "quant": "q5_0",
+   "multilingual": false,
+   "can_translate": false,
+   "family": "medium"
+  },
+  {
+   "id": "large-v3-turbo-q5_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-large-v3-turbo-q5_0.bin"
+   ],
+   "size": 574041195,
+   "quant": "q5_0",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "large-v3-turbo"
+  },
+  {
+   "id": "large-v3-turbo-q8_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-large-v3-turbo-q8_0.bin"
+   ],
+   "size": 874188075,
+   "quant": "q8_0",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "large-v3-turbo"
+  },
+  {
+   "id": "large-v3-turbo",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-large-v3-turbo.bin"
+   ],
+   "size": 1624555275,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "large-v3-turbo"
+  },
+  {
+   "id": "large-v3-q5_0",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-large-v3-q5_0.bin"
+   ],
+   "size": 1081140203,
+   "quant": "q5_0",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "large-v3"
+  },
+  {
+   "id": "large-v3",
+   "backend": "whispercpp",
+   "repo": "ggerganov/whisper.cpp",
+   "files": [
+    "ggml-large-v3.bin"
+   ],
+   "size": 3095033483,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "large-v3"
+  },
+  {
+   "id": "faster-whisper-tiny",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-whisper-tiny",
+   "files": [],
+   "size": 78207087,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "tiny"
+  },
+  {
+   "id": "faster-whisper-base",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-whisper-base",
+   "files": [],
+   "size": 147886409,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "base"
+  },
+  {
+   "id": "faster-whisper-small",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-whisper-small",
+   "files": [],
+   "size": 486215847,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "small"
+  },
+  {
+   "id": "faster-whisper-medium",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-whisper-medium",
+   "files": [],
+   "size": 1530575217,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "medium"
+  },
+  {
+   "id": "faster-whisper-large-v3-turbo",
+   "backend": "fasterwhisper",
+   "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+   "files": [],
+   "size": 1621668947,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "large-v3-turbo"
+  },
+  {
+   "id": "faster-whisper-large-v3",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-whisper-large-v3",
+   "files": [],
+   "size": 3090839273,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": true,
+   "family": "large-v3"
+  },
+  {
+   "id": "faster-whisper-distil-large-v3",
+   "backend": "fasterwhisper",
+   "repo": "Systran/faster-distil-whisper-large-v3",
+   "files": [],
+   "size": 1516482645,
+   "quant": "f16",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "distil-large-v3"
+  },
+  {
+   "id": "silero-v6.2.0",
+   "backend": "vad",
+   "repo": "ggml-org/whisper-vad",
+   "files": [
+    "ggml-silero-v6.2.0.bin"
+   ],
+   "size": 885098,
+   "quant": "f32",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "silero"
+  },
+  {
+   "id": "ten-vad",
+   "backend": "vad",
+   "repo": "TEN-framework/ten-vad",
+   "source": "github",
+   "commit": "b425116336f400f1181a46ba2d58b913cc19d3e5",
+   "multilingual": true,
+   "can_translate": false,
+   "family": "ten",
+   "license": "Apache 2.0 with additional conditions by Agora (see the TEN VAD repository)",
+   "platforms": {
+    "win32": {
+     "path": "lib/Windows/x64/ten_vad.dll",
+     "name": "ten_vad.dll",
+     "size": 510464,
+     "blob": "a0f19dccfde03bf24c81d1b7e46b58e811517831"
+    },
+    "darwin": {
+     "path": "lib/macOS/ten_vad.framework/Versions/A/ten_vad",
+     "name": "libten_vad.dylib",
+     "size": 744600,
+     "blob": "5c344a42e05f0ad3fb02a244f59a8a00f0fc877c"
+    },
+    "linux": {
+     "path": "lib/Linux/x64/libten_vad.so",
+     "name": "libten_vad.so",
+     "size": 313240,
+     "blob": "e7f45555727c7895cde0432dc4ff1bdbe8c9b32b"
+    }
+   }
+  }
+ ]
+}
