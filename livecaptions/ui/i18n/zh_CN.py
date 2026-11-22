@@ -188,7 +188,8 @@ TABLE = {
     'On battery, a discrete GPU can cost more power than an integrated GPU or the CPU.': '使用电池时，独立显卡可能比集成显卡或 CPU 更耗电。',
     'Flash attention': 'Flash attention',
     'CPU threads': 'CPU 线程数',
-    'More threads finish sooner but wake more cores.': '线程越多算得越快，但会唤醒更多核心。',
+    'More threads finish sooner but wake more cores. Never more than the logical cores.':
+        '线程越多算得越快，但会唤醒更多核心。不会超过逻辑核心数。',
     'Compute type': '计算类型',
     'Model default': '模型默认',
     'Beam size': 'Beam 大小',

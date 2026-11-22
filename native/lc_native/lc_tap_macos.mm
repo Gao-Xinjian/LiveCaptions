@@ -30,6 +30,8 @@ struct LcTap {
     int                 pick         = 0;
     std::vector<float>  in_buf;               // interleaving buffer for non-interleaved streams
     std::vector<float>  out_buf;              // converted 16 kHz audio
+    int64_t             start_ns  = 0;
+    bool                got_audio = false;    // the first IO cycle has been logged
 };
 
 AudioObjectPropertyAddress MakeAddr(AudioObjectPropertySelector sel) {
@@ -91,6 +93,11 @@ API_AVAILABLE(macos(14.2)) NSArray<NSNumber *> * FindProcesses(const std::vector
 
 // Called on the tap's queue for every IO cycle: convert to 16 kHz and push into the ring buffer.
 void OnTapData(lc_audio * a, LcTap * t, const AudioBufferList * list) {
+    if (!t->got_audio) {   // once: shows whether audio reaches us at all
+        t->got_audio = true;
+        LcLog(kLcLogInfo, "lc_tap: first IO cycle %.0f ms after start, %u buffers, %u bytes\n", GetMsSince(t->start_ns),
+              list ? (unsigned) list->mNumberBuffers : 0u, list && list->mNumberBuffers ? (unsigned) list->mBuffers[0].mDataByteSize : 0u);
+    }
     if (!list || list->mNumberBuffers == 0 || !list->mBuffers[0].mData) return;
     const UInt32  ch = t->channels;
     UInt32        frames;
@@ -129,7 +136,8 @@ bool LcTapAvailable() {
 bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
     if (@available(macOS 14.2, *)) {
         @autoreleasepool {
-            auto * t        = new LcTap();
+            int64_t t0      = LcNowNs();   // each step is timed: on CI one of them takes minutes
+            auto *  t       = new LcTap();
             a->tap          = t;
             t->out_channels = a->channel_mode == 0 ? 1 : 2;
             t->pick         = a->channel_mode == 2 ? 1 : 0;
@@ -141,6 +149,8 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
                 desc = [[CATapDescription alloc] initStereoGlobalTapButExcludeProcesses:@[]];
             } else {
                 NSArray<NSNumber *> * procs = FindProcesses(apps);
+                LcLog(kLcLogInfo, "lc_tap: %u of the listed apps running (%.0f ms)\n", (unsigned) procs.count, GetMsSince(t0));
+                t0 = LcNowNs();
                 if (procs.count == 0) {
                     err = "none of the listed apps is running";
                     LcTapClose(a);
@@ -150,6 +160,8 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
             }
             desc.name   = @"LiveCaptions";
             OSStatus st = AudioHardwareCreateProcessTap(desc, &t->tap);
+            LcLog(kLcLogInfo, "lc_tap: process tap created, status %d (%.0f ms)\n", (int) st, GetMsSince(t0));
+            t0 = LcNowNs();
             if (st != noErr) {
                 err = MakeStatusText("Creating the process tap (allow audio recording in System Settings > Privacy & Security)", st);
                 LcTapClose(a);
@@ -169,6 +181,9 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
             }
             t->channels    = std::max<UInt32>(1, asbd.mChannelsPerFrame);
             t->interleaved = !(asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved);
+            LcLog(kLcLogInfo, "lc_tap: tap format %.0f Hz, %u channels, %s (%.0f ms)\n", asbd.mSampleRate, (unsigned) t->channels,
+                  t->interleaved ? "interleaved" : "non-interleaved", GetMsSince(t0));
+            t0 = LcNowNs();
 
             // A private aggregate device holding the tap, clocked by the default output device.
             AudioObjectID              out_dev = kAudioObjectUnknown;
@@ -192,6 +207,8 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
                 @kAudioAggregateDeviceTapListKey : @[ @{@kAudioSubTapDriftCompensationKey : @YES, @kAudioSubTapUIDKey : desc.UUID.UUIDString} ],
             };
             st = AudioHardwareCreateAggregateDevice((__bridge CFDictionaryRef) agg_desc, &t->agg);
+            LcLog(kLcLogInfo, "lc_tap: aggregate device created, status %d (%.0f ms)\n", (int) st, GetMsSince(t0));
+            t0 = LcNowNs();
             if (st != noErr) {
                 err = MakeStatusText("Creating the aggregate device for the tap", st);
                 LcTapClose(a);
@@ -221,6 +238,7 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
                                                         (void) now, (void) in_time, (void) out, (void) out_time;
                                                         OnTapData(a, t, in);
                                                     });
+            LcLog(kLcLogInfo, "lc_tap: IO callback set up, status %d (%.0f ms)\n", (int) st, GetMsSince(t0));
             if (st != noErr) {
                 err = MakeStatusText("Creating the tap's IO callback", st);
                 LcTapClose(a);
@@ -236,15 +254,20 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
 bool LcTapStart(lc_audio * a) {
     auto * t = static_cast<LcTap *>(a->tap);
     if (!t || !t->proc) return false;
-    t->running = AudioDeviceStart(t->agg, t->proc) == noErr;
+    t->start_ns       = LcNowNs();
+    const OSStatus st = AudioDeviceStart(t->agg, t->proc);
+    LcLog(kLcLogInfo, "lc_tap: started, status %d (%.0f ms)\n", (int) st, GetMsSince(t->start_ns));
+    t->running = st == noErr;
     return t->running;
 }
 
 void LcTapStop(lc_audio * a) {
     auto * t = static_cast<LcTap *>(a->tap);
     if (t && t->running) {
+        const int64_t t0 = LcNowNs();
         AudioDeviceStop(t->agg, t->proc);
         t->running = false;
+        LcLog(kLcLogInfo, "lc_tap: stopped (%.0f ms)\n", GetMsSince(t0));
     }
 }
 
@@ -253,9 +276,14 @@ void LcTapClose(lc_audio * a) {
     if (!t) return;
     LcTapStop(a);
     if (@available(macOS 14.2, *)) {
+        const int64_t t0 = LcNowNs();
         if (t->proc) AudioDeviceDestroyIOProcID(t->agg, t->proc);
+        const double ms_proc = GetMsSince(t0);
         if (t->agg != kAudioObjectUnknown) AudioHardwareDestroyAggregateDevice(t->agg);
+        const double ms_agg = GetMsSince(t0) - ms_proc;
         if (t->tap != kAudioObjectUnknown) AudioHardwareDestroyProcessTap(t->tap);
+        LcLog(kLcLogInfo, "lc_tap: closed (IO callback %.0f ms, aggregate device %.0f ms, tap %.0f ms)\n", ms_proc, ms_agg,
+              GetMsSince(t0) - ms_proc - ms_agg);
     }
     if (t->conv_ok) ma_data_converter_uninit(&t->conv, nullptr);
     t->queue = nil;

@@ -55,6 +55,16 @@ inline int64_t LcNowNs() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
+inline double GetMsSince(int64_t t0_ns) { return (double) (LcNowNs() - t0_ns) / 1e6; }
+
+constexpr int kLcLogInfo = 2;  // GGML_LOG_LEVEL_INFO: printed after lc_set_log_level(2) or lower
+
+// Prints a printf-style message to stderr when `level` reaches the level set by lc_set_log_level.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+void LcLog(int level, const char * fmt, ...);
+
 // Appends frames of 16 kHz float audio with `step` interleaved channels, taking channel `pick` of each frame.
 inline void LcPushSamples(lc_audio * a, const float * in, uint64_t frames, int step, int pick) {
     if (!in || frames == 0) return;

@@ -3,7 +3,8 @@ import time
 
 import numpy as np
 
-from livecaptions.engines.base import ASREngine, EngineCaps, Piece, Segment, TranscribeResult, guess_can_translate
+from livecaptions.engines.base import (ASREngine, EngineCaps, Piece, Segment, TranscribeResult, get_threads,
+                                       guess_can_translate)
 
 
 def get_cuda_count():
@@ -33,7 +34,7 @@ class FasterWhisperEngine(ASREngine):
             return
         self.unload()
         self.model = WhisperModel(model_path, device=device, device_index=recog_cfg.gpu_device if device == 'cuda' else 0,
-                                  compute_type=recog_cfg.compute_type, cpu_threads=recog_cfg.threads, num_workers=1,
+                                  compute_type=recog_cfg.compute_type, cpu_threads=get_threads(recog_cfg.threads), num_workers=1,
                                   local_files_only=True)
         self.model_path, self.load_key, self.device = model_path, key, device
         multi = bool(self.model.model.is_multilingual)

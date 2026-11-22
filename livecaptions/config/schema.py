@@ -85,7 +85,8 @@ class RecogCfg:
                       tip='On battery, a discrete GPU can cost more power than an integrated GPU or the CPU.')
     gpu_device: int = opt(0, 'GPU', kind='gpu')
     flash_attn: bool = opt(True, 'Flash attention', backends=WCPP, advanced=True)
-    threads: int = opt(4, 'CPU threads', lo=1, hi=64, tip='More threads finish sooner but wake more cores.')
+    threads: int = opt(4, 'CPU threads', lo=1, hi=64,
+                       tip='More threads finish sooner but wake more cores. Never more than the logical cores.')
     compute_type: str = opt('int8', 'Compute type', backends=FW,
                             choices=[('default', 'Model default'), ('int8', 'int8'), ('int8_float16', 'int8_float16'),
                                      ('int8_float32', 'int8_float32'), ('float16', 'float16'), ('float32', 'float32')])

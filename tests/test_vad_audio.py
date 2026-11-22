@@ -79,22 +79,42 @@ def test_ten_vad_found_in_models_folder(tmp_path):
 
 @pytest.mark.skipif(not (sys.platform == 'darwin' and native.is_available()), reason='macOS only')
 def test_macos_tap_smoke():
-    """Open, start and close the process tap. Without the permission (as on CI) it may fail to open: then skip."""
+    """
+    Open, start and close the process tap. Without the permission it may fail to open: then skip.
+
+    Prints how long each step took (lc_native logs the Core Audio calls too); see it with pytest -rP.
+    """
     from livecaptions.audio.capture import NativeCapture
     from livecaptions.audio.devices import supports_system_audio
     if not supports_system_audio():
         pytest.skip('needs macOS 14.2+')
     cfg = Config().audio
     cfg.source = 'system'
+    native.set_log_level(2)  # info: the per-call timings from lc_tap_macos.mm
+    times = {}
+    t0 = time.monotonic()
     try:
         cap = NativeCapture(cfg)
     except native.NativeError as e:
+        native.set_log_level(3)
         pytest.skip(f'tap not available here: {e}')
+    times['open'] = time.monotonic() - t0
+    n_samples, peak = 0, 0.0
     try:
+        t0 = time.monotonic()
         cap.start()
+        times['start'] = time.monotonic() - t0
         t0 = time.monotonic()
         while time.monotonic() - t0 < 1.0:
-            cap.read(100)  # silence or nothing is fine; it must not crash
+            x = cap.read(100)  # silence or nothing is fine; it must not crash
+            n_samples += len(x)
+            peak = max(peak, float(np.abs(x).max())) if len(x) else peak
     finally:
+        t0 = time.monotonic()
         cap.stop()
+        times['stop'] = time.monotonic() - t0
+        t0 = time.monotonic()
         cap.close()
+        times['close'] = time.monotonic() - t0
+        native.set_log_level(3)
+    print(', '.join(f'{k} {v:.2f} s' for k, v in times.items()), f'| read {n_samples} samples in 1 s, peak {peak:.3f}')

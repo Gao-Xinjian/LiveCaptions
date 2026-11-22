@@ -83,6 +83,12 @@ class ASREngine:
         return self.name
 
 
+def get_threads(n_threads):
+    """Return the CPU threads to use: the setting, at most the logical cores (extra threads only wait on the others)."""
+    n_threads = max(1, int(n_threads))
+    return min(n_threads, os.cpu_count() or n_threads)
+
+
 def guess_can_translate(model_path, multilingual=True):
     """Return whether a model can translate, from its name: turbo, distil and English-only models cannot."""
     name = os.path.basename(os.path.normpath(model_path)).lower()

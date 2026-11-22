@@ -5,7 +5,8 @@ import time
 import numpy as np
 
 from livecaptions import SAMPLE_RATE, native
-from livecaptions.engines.base import ASREngine, EngineCaps, Piece, Segment, TranscribeResult, guess_can_translate
+from livecaptions.engines.base import (ASREngine, EngineCaps, Piece, Segment, TranscribeResult, get_threads,
+                                       guess_can_translate)
 
 
 def get_audio_ctx(recog_cfg, n_samples):
@@ -86,7 +87,7 @@ class WhisperCppEngine(ASREngine):
         audio = np.ascontiguousarray(audio, dtype=np.float32)
         prompt = (C.c_int32 * max(1, len(prompt_tokens)))(*prompt_tokens)
         p = native.DecodeParams(
-            n_threads=rc.threads, translate=int(task == 'translate'), no_context=1, single_segment=int(rc.single_segment),
+            n_threads=get_threads(rc.threads), translate=int(task == 'translate'), no_context=1, single_segment=int(rc.single_segment),
             token_timestamps=int(rc.token_timestamps), max_len=rc.max_len, split_on_word=int(rc.split_on_word),
             max_tokens=rc.max_tokens, audio_ctx=get_audio_ctx(rc, len(audio)), beam_size=rc.beam_size, best_of=rc.best_of,
             suppress_blank=int(rc.suppress_blank), suppress_nst=int(rc.suppress_nst), temperature=rc.temperature,

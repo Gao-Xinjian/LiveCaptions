@@ -15,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -107,6 +108,14 @@ void OnAudioNotification(const ma_device_notification * n) {
 }
 
 } // namespace
+
+void LcLog(int level, const char * fmt, ...) {
+    if (level < g_log_min.load()) return;
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
 
 extern "C" {
 
