@@ -17,13 +17,15 @@ jobs:
         include:
           - os: windows-latest
             gpu: cpu
-          - os: macos-14
+          - os: macos-latest   # arm64; a pinned macos-NN label stops working when GitHub retires that image
             gpu: metal
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONIOENCODING: utf-8   # the replay output has non-ASCII text
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -34,7 +36,7 @@ jobs:
         run: python scripts/build_native.py --gpu ${{ matrix.gpu }} --portable
 
       - name: Cache models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ci-models
           key: models-tiny-q5_1-fw-tiny
@@ -68,7 +70,7 @@ jobs:
             python tools/replay.py build/_deps/whisper-src/samples/jfk.wav --model ci-models/ggml-tiny-q5_1.bin --vad energy --cpu --speed 0 --config none.toml --set stream.policy=$p
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: lc_native-${{ matrix.os }}
           path: livecaptions/bin/
