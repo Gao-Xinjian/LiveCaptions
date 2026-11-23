@@ -14,6 +14,7 @@ from livecaptions.pipeline import EngineHolder, Pipeline
 from livecaptions.power import apply_power_settings
 from livecaptions.stats.sampler import ResourceSampler
 from livecaptions.ui.caption_window import CaptionView, CaptionWindow
+from livecaptions.ui.first_run import FirstRunDialog, needs_first_run
 from livecaptions.ui.hotkeys import HotkeyManager
 from livecaptions.ui.i18n import install_language, tr
 from livecaptions.ui.settings_window import MainWindow
@@ -80,6 +81,14 @@ class Controller(QObject):
         if not (cfg.general.start_minimized and self.tray.isVisible()):
             self.main.show()
         self.main.set_status(tr('Ready.') if native_ok else tr('lc_native is missing: run python scripts/build_native.py'))
+        if native_ok and needs_first_run(cfg):
+            QTimer.singleShot(300, self.show_first_run)
+
+    def show_first_run(self):
+        """Offer to download a model while none is installed."""
+        self.main.show()
+        self.main.raise_()
+        FirstRunDialog(self).exec()
 
     # State.
 

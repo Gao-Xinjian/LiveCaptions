@@ -139,13 +139,15 @@ def measure_capture(audio_cfg, seconds, on_started=None):
     return times, n_samples, peak
 
 
-@pytest.mark.skipif(not (sys.platform == 'darwin' and native.is_available()), reason='macOS only')
+@pytest.mark.skipif(not (sys.platform == 'darwin' and os.environ.get('LC_TEST_TAP') == '1'),
+                    reason='macOS with LC_TEST_TAP=1 (plays a tone and records system audio)')
 def test_macos_tap_smoke():
     """
     Open the process tap and read while afplay plays a tone; skip if it cannot open.
 
-    Without the system audio recording permission the IO calls wait for minutes and no audio arrives (CI grants the
-    permission first). It must not crash; timings, samples and the peak are printed (pytest -rP).
+    For a real Mac: macOS asks for the system audio recording permission first (until it is answered the IO calls
+    wait, up to minutes on the CI VM). Timings, samples and the peak are printed (pytest -rP); with the permission
+    the peak should be near 0.3, the tone's level.
     """
     from livecaptions.audio.devices import supports_system_audio
     if not supports_system_audio():

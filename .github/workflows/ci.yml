@@ -1,7 +1,8 @@
-# Builds lc_native and runs the tests on Windows and macOS (Apple Silicon).
+# Builds lc_native, runs the tests and packages the app on Windows and macOS (Apple Silicon).
 # CI cannot test real capture, the GPU or power (PLAN.md §17.1): native builds here are CPU/Metal compile checks
 # (on macOS this also compiles the Core Audio process tap), and the end-to-end tests transcribe whisper.cpp's sample
-# WAV on the CPU with the tiny models of both backends. The macOS tap test skips if the runner denies the tap.
+# WAV on the CPU with the tiny models of both backends. Audio capture is not tested here: the macOS runner is a VM
+# whose system audio permission nobody can grant (the tap waits minutes for it), so it is tested on a real Mac.
 name: ci
 
 on:
@@ -53,23 +54,6 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -c "import livecaptions.ui.app, livecaptions.main; print('ui ok')"
 
-      - name: List audio devices (macOS; the tap test logs which one it uses)
-        if: runner.os == 'macOS'
-        run: system_profiler SPAudioDataType
-
-      # The image grants the microphone to the runner agents (they are the "responsible" processes of every step) but
-      # not system audio recording; without it the tap's IO calls wait for a prompt nobody answers. Same row format as
-      # the image's own configure-tccdb-macos.sh; a failed write only leaves the test as it was.
-      - name: Allow system audio recording (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          now=$(date +%s)
-          for client in /opt/hca/hosted-compute-agent /usr/local/opt/runner/provisioner/provisioner; do
-            row="'kTCCServiceAudioCapture','$client',1,2,4,1,NULL,NULL,NULL,'UNUSED',NULL,NULL,$now,NULL,NULL,'UNUSED',$now"
-            sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR REPLACE INTO access VALUES($row);" || echo "system TCC.db not written"
-            sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR REPLACE INTO access VALUES($row);" || echo "user TCC.db not written"
-          done
-
       - name: Tests
         shell: bash
         env:
@@ -78,8 +62,7 @@ jobs:
           LC_TEST_WAV: build/_deps/whisper-src/samples/jfk.wav
           LC_TEST_DEVICE: cpu
           LC_TEST_TEN_DOWNLOAD: '1'
-          LC_TEST_MIC: '1'   # the runners' default input; skipped where there is none
-        run: python -m pytest -v -rsP   # P: output of passed tests, e.g. the macOS tap timings
+        run: python -m pytest -v -rs
 
       - name: Replay the sample with each policy (prints latency and load)
         shell: bash
@@ -89,7 +72,28 @@ jobs:
             python tools/replay.py build/_deps/whisper-src/samples/jfk.wav --model ci-models/ggml-tiny-q5_1.bin --vad energy --cpu --speed 0 --config none.toml --set stream.policy=$p
           done
 
+      # The packages: Windows with the CPU-only lc_native built above (a Vulkan build needs the Vulkan SDK; build that
+      # one locally), macOS with Metal. Unsigned: macOS asks to confirm opening it (README).
+      - name: Package the app (PyInstaller)
+        shell: bash
+        run: |
+          python -m pip install -e ".[package]"
+          python scripts/build_app.py
+
+      - name: Check the packaged app (windows offscreen, one transcription per backend)
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then app=dist/LiveCaptions.app/Contents/MacOS/LiveCaptions; else app=dist/LiveCaptions/LiveCaptions.exe; fi
+          wav=build/_deps/whisper-src/samples/jfk.wav
+          status=0
+          "$app" --self-check --ui --cpu --model ci-models/ggml-tiny-q5_1.bin --wav $wav --report check-whispercpp.txt || status=1
+          "$app" --self-check --cpu --model ci-models/fw-tiny --wav $wav --report check-fasterwhisper.txt || status=1
+          cat check-whispercpp.txt check-fasterwhisper.txt
+          exit $status
+
       - uses: actions/upload-artifact@v7
         with:
-          name: lc_native-${{ matrix.os }}
-          path: livecaptions/bin/
+          name: LiveCaptions-${{ matrix.os }}
+          path: dist/*.zip

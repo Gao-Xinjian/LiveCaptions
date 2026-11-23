@@ -23,6 +23,7 @@ faster-whisper = ["faster-whisper>=1.1"]
 chinese = ["opencc>=1.1"]
 audio-formats = ["soundfile>=0.12"]   # FLAC and Opus recordings
 dev = ["pytest>=8"]
+package = ["pyinstaller>=6.10", "pillow>=10"]   # scripts/build_app.py; Pillow turns the PNG icon into .ico / .icns
 
 [project.scripts]
 livecaptions = "livecaptions.main:main"

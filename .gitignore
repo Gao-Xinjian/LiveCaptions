@@ -6,3 +6,4 @@ __pycache__/
 livecaptions/bin/
 ci-models/
 build_native.log
+dist/

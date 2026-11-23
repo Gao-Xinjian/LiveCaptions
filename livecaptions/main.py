@@ -1,13 +1,40 @@
 """Entry point: single instance, Qt application, controller."""
+import faulthandler
 import getpass
+import os
 import sys
 
+import platformdirs
 from PySide6.QtCore import Qt
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
 from livecaptions import APP_NAME
 from livecaptions.config.store import load_config
+
+
+def get_log_path():
+    """Return the log file of the packaged app (the previous run's log is kept next to it)."""
+    return os.path.join(platformdirs.user_log_dir(APP_NAME, appauthor=False), 'livecaptions.log')
+
+
+def redirect_output_to_log():
+    """
+    Send Python's and lc_native's output to the log file: a packaged app has no console, so errors would vanish.
+    Crashes in native code are logged too (faulthandler).
+    """
+    path = get_log_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        os.replace(path, os.path.splitext(path)[0] + '.previous.log')
+    f = open(path, 'w', encoding='utf-8', buffering=1)
+    for fd in (1, 2):   # the C runtime's stdout/stderr (whisper.cpp, ggml, the tap timings)
+        try:
+            os.dup2(f.fileno(), fd)
+        except OSError:
+            pass
+    sys.stdout = sys.stderr = f
+    faulthandler.enable(f)
 
 
 def get_instance_key():
@@ -29,6 +56,11 @@ def notify_running_instance(key):
 
 
 def main():
+    if '--self-check' in sys.argv[1:]:
+        from livecaptions.selfcheck import run_self_check
+        return run_self_check(sys.argv[1:])
+    if getattr(sys, 'frozen', False):
+        redirect_output_to_log()
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)

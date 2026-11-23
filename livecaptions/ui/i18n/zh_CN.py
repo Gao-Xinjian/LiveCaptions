@@ -417,4 +417,22 @@ TABLE = {
         'Windows 11 会让程序在能效核心上以低频运行。省电；请确认字幕能跟上。',
     'Native log level': '原生库日志级别',
     '1 debug, 2 info, 3 warnings, 4 errors, 5 silent.': '1 调试，2 信息，3 警告，4 错误，5 静默。',
+    # First-run dialog.
+    'Welcome to LiveCaptions': '欢迎使用 LiveCaptions',
+    'GPU found:': '找到 GPU：',
+    'No GPU found; the CPU will do the work.': '没有找到 GPU，将由 CPU 运算。',
+    'Captions need a speech recognition model. It is not included: choose one to download '
+    '(it stays on this computer), or use a model file you already have.':
+        '生成字幕需要语音识别模型。程序不自带模型：请选择一个下载（模型只保存在这台电脑上），或使用你已有的模型文件。',
+    'accurate; best with a GPU': '准确，最好配合 GPU',
+    'lighter; fine on the CPU': '更轻，CPU 也能胜任',
+    'fastest, less accurate': '最快，但准确度较低',
+    'More models, also for faster-whisper, are on the Model page under Download….':
+        '更多模型（包括 faster-whisper 的）在“模型”页的“下载…”里。',
+    'Download through hf-mirror.com (faster in mainland China)': '通过 hf-mirror.com 下载（在中国大陆更快）',
+    'Use a model file I have…': '使用已有的模型文件…',
+    'Later': '以后再说',
+    'Download and use': '下载并使用',
+    'Cancel': '取消',
+    'the speech detector': '语音检测模型',
 }

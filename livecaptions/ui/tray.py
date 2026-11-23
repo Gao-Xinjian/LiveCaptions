@@ -6,26 +6,31 @@ from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 from livecaptions.ui.i18n import tr
 
 
+def draw_icon(size, color='#3A6FD8'):
+    """Draw the icon (a 'CC' caption badge) at one size; also used for the packaged app's icon file."""
+    pm = QPixmap(size, size)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(color))
+    p.drawRoundedRect(QRectF(0, size * 0.12, size, size * 0.76), size * 0.18, size * 0.18)
+    font = QFont()
+    font.setBold(True)
+    font.setPixelSize(int(size * 0.42))
+    p.setFont(font)
+    p.setPen(QColor('white'))
+    p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, 'CC')
+    p.end()
+    return pm
+
+
 def make_icon(state='idle'):
     """Return the app icon; state 'running' and 'paused' change its colour."""
     color = {'running': '#2E9E5B', 'paused': '#D08A1E'}.get(state, '#3A6FD8')
     icon = QIcon()
     for size in (16, 24, 32, 48, 64, 128, 256):
-        pm = QPixmap(size, size)
-        pm.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(color))
-        p.drawRoundedRect(QRectF(0, size * 0.12, size, size * 0.76), size * 0.18, size * 0.18)
-        font = QFont()
-        font.setBold(True)
-        font.setPixelSize(int(size * 0.42))
-        p.setFont(font)
-        p.setPen(QColor('white'))
-        p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, 'CC')
-        p.end()
-        icon.addPixmap(pm)
+        icon.addPixmap(draw_icon(size, color))
     return icon
 
 
