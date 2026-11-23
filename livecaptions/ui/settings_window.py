@@ -85,6 +85,11 @@ class MainWindow(QMainWindow):
         self.b_start.clicked.connect(self.ctl.start_or_pause)
         self.b_stop = QPushButton()
         self.b_stop.clicked.connect(self.ctl.stop)
+        self.b_captions = QPushButton()
+        self.b_captions.clicked.connect(lambda: self.ctl.on_tray('show_captions'))
+        self.b_click = QPushButton()   # the way back from click-through without hotkeys or the tray
+        self.b_click.setCheckable(True)
+        self.b_click.clicked.connect(lambda on: self.ctl.set_caption_opt('click_through', on))
         self.b_folder = QPushButton()
         self.b_folder.clicked.connect(self.ctl.open_session_folder)
         self.status = QLabel()
@@ -94,6 +99,8 @@ class MainWindow(QMainWindow):
         row.addWidget(self.b_stop)
         row.addWidget(self.status, 1)
         row.addWidget(self.elapsed)
+        row.addWidget(self.b_captions)
+        row.addWidget(self.b_click)
         row.addWidget(self.b_folder)
         return row
 
@@ -103,6 +110,13 @@ class MainWindow(QMainWindow):
         self.b_start.setText(tr('Pause') if running and not paused else (tr('Resume') if paused else tr('Start')))
         self.b_stop.setText(tr('Stop'))
         self.b_stop.setEnabled(running)
+        cc = self.cfg.caption
+        self.b_captions.setText(tr('Show / hide captions'))
+        self.b_click.setText(tr('Click-through'))
+        self.b_click.setToolTip(tr('Clicks go to the windows below. Toggle back with the button in the main window or the tray menu.'))
+        self.b_click.setChecked(cc.click_through)
+        for b in (self.b_captions, self.b_click):   # docked captions live in this window
+            b.setEnabled(not cc.docked)
         self.b_folder.setText(tr('Open folder'))
 
     def set_status(self, text):

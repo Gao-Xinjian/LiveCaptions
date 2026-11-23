@@ -258,7 +258,7 @@ class CaptionCfg:
     align: str = opt('left', 'Alignment', choices=[('left', 'Left'), ('center', 'Centre')], live=True)
     tentative_italic: bool = opt(False, 'Unfinished text in italics', live=True)
     on_top: bool = opt(True, 'Always on top', live=True)
-    click_through: bool = opt(False, 'Click-through', live=True, tip='Clicks go to the windows below. Toggle back with the hotkey or the tray menu.')
+    click_through: bool = opt(False, 'Click-through', live=True, tip='Clicks go to the windows below. Toggle back with the button in the main window or the tray menu.')
     scrollback: int = opt(1000, 'Lines kept for scrolling back', lo=10, hi=100000, live=True)
     geometry: list = opt([], kind='hidden')
     hk_start: str = opt('Ctrl+Alt+S', 'Hotkey: start / pause', kind='hotkey', live=True)

@@ -389,7 +389,8 @@ TABLE = {
     'Left': '左对齐',
     'Centre': '居中',
     'Unfinished text in italics': '未定稿文字用斜体',
-    'Clicks go to the windows below. Toggle back with the hotkey or the tray menu.': '点击会穿透到下方窗口。用快捷键或托盘菜单切换回来。',
+    'Clicks go to the windows below. Toggle back with the button in the main window or the tray menu.':
+        '点击会穿透到下方窗口。用主窗口里的按钮或托盘菜单切换回来。',
     'Lines kept for scrolling back': '可回滚的行数',
     'Hotkey: start / pause': '快捷键：开始 / 暂停',
     'Hotkey: stop': '快捷键：停止',

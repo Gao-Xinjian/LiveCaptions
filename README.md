@@ -16,7 +16,8 @@ or [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
   gain for quiet, distant speakers; or an adaptive energy threshold),
   a warmed-up GPU, priority and Windows EcoQoS options, a monitor strip with RAM / CPU / inference / GPU load and battery.
 - **Captions**: floating window (always on top, click-through, colours, opacity, font, lines) or docked in the main window,
-  scroll back and copy. Hotkeys work globally on Windows.
+  scroll back and copy. Start/pause, stop, show/hide and click-through are buttons in the main window and the tray
+  menu; optional hotkeys too (global on Windows, only while the app is active on macOS).
 - **Saving**: per session folder with audio (WAV, FLAC, Opus) and transcripts (txt, srt, vtt, jsonl, md), written as it goes.
 - **Terms**: per-course term profiles in Whisper's prompt (also as faster-whisper hotwords), editable while running.
 - **Options**: every setting is in the settings window, with tooltips; no built-in modes. English and 简体中文 interface.
@@ -155,8 +156,8 @@ tests/
 
 ## Not done yet
 
-Trying it on a real Mac (CI only builds and unit-tests it); global hotkeys on macOS (now they work only while the app
-has focus); optional automatic adaptation when inference falls behind; signing the packages.
+Trying it on a real Mac (CI only builds and unit-tests it); optional automatic adaptation when inference falls behind;
+signing the packages.
 
 ## Licence
 

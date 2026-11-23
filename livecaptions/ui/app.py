@@ -212,8 +212,10 @@ class Controller(QObject):
             if name in ('on_top', 'click_through'):
                 self.caption_win.apply_flags()
                 self.tray.acts['click'].setChecked(cc.click_through)
+                self.main.retranslate_controls()   # the click-through button
             elif name == 'docked':
                 self.apply_dock()
+                self.main.retranslate_controls()
             elif name.startswith('hk_'):
                 self.register_hotkeys()
             else:
