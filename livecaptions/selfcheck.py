@@ -3,6 +3,7 @@
 backends, the bundled data, optionally one transcription and the windows built offscreen. Exit code 0 when all pass.
 """
 import argparse
+import faulthandler
 import os
 import platform
 import sys
@@ -14,32 +15,38 @@ from livecaptions import APP_NAME, __version__
 
 
 class Report:
-    """Collects check lines; printed as they come (if there is a console) and written to a file at the end."""
+    """
+    Check lines, printed as they come (if there is a console) and written to the report file line by line, so a
+    check that hangs still leaves everything before it.
+    """
 
     def __init__(self, path):
-        self.path = path
-        self.lines = []
+        self.file = open(path, 'w', encoding='utf-8') if path else None
         self.failed = 0
 
-    def add(self, name, ok, detail=''):
-        line = f'{"ok  " if ok else "FAIL"} {name}' + (f': {detail}' if detail else '')
-        self.lines.append(line)
-        self.failed += 0 if ok else 1
+    def write(self, line):
+        if self.file is not None:
+            self.file.write(line + '\n')
+            self.file.flush()
         if sys.stdout is not None:
             print(line, flush=True)
 
+    def add(self, name, ok, detail=''):
+        self.failed += 0 if ok else 1
+        self.write(f'{"ok  " if ok else "FAIL"} {name}' + (f': {detail}' if detail else ''))
+
     def run(self, name, fn):
         """Run fn() -> detail text; a raised exception marks the check as failed."""
+        self.write(f'...  {name}')
         try:
             self.add(name, True, fn())
         except Exception as e:
             self.add(name, False, f'{type(e).__name__}: {e}')
-            self.lines.append(traceback.format_exc().rstrip())
+            self.write(traceback.format_exc().rstrip())
 
-    def save(self):
-        if self.path:
-            with open(self.path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(self.lines) + '\n')
+    def close(self):
+        if self.file is not None:
+            self.file.close()
 
 
 def check_native():
@@ -94,7 +101,9 @@ def check_transcription(model, wav, cpu):
     return f'{engine.describe()}, load {t_load:.1f} s, {len(audio) / 16000:.0f} s audio in {result.seconds:.1f} s: {text[:120]}'
 
 
-def check_ui():
+def check_ui(step):
+    """Build the controller and its windows, a first-run dialog and the Chinese text; step(text) reports progress."""
+    step('     creating the Qt application')
     from PySide6.QtWidgets import QApplication
     import livecaptions.config.store as store
     from livecaptions.config.schema import Config
@@ -104,18 +113,23 @@ def check_ui():
     app = QApplication.instance() or QApplication([sys.argv[0]])
     from livecaptions.ui.app import Controller
     from livecaptions.ui.first_run import FirstRunDialog
+    Controller.show_first_run = lambda self: None   # it would wait for a click; this check builds the dialog itself
     cfg = Config()
     cfg.general.start_minimized = False
     cfg.model.models_dir = os.path.join(cfg_dir, 'models')
+    step('     building the controller and its windows')
     ctl = Controller(app, cfg)
-    app.processEvents()   # the first-run dialog is due after 300 ms; this check builds one itself instead
+    app.processEvents()
     size = ctl.main.size()
+    step('     building the first-run dialog (lists the GPUs)')
     dlg = FirstRunDialog(ctl)
     n_choices = len(dlg.radios)
+    step('     switching the language')
     install_language(app, 'zh_CN')
     zh = tr('Ready.')
     install_language(app, 'en')
     dlg.deleteLater()
+    step('     quitting the controller')
     ctl.quit()
     if zh == 'Ready.':
         raise RuntimeError('the Chinese interface text did not load')
@@ -134,9 +148,14 @@ def run_self_check(argv):
     parser.add_argument('--cpu', action='store_true', help='transcribe on the CPU (default: the settings default)')
     parser.add_argument('--ui', action='store_true', help='also build the windows; offscreen with QT_QPA_PLATFORM=offscreen (default: off)')
     parser.add_argument('--report', default='', help='also write the report to this file; packaged Windows builds have no console (default: none)')
+    parser.add_argument('--timeout', type=float, default=0,
+                        help='after this many seconds write where every thread is and exit, for hangs on CI (default: 0 = off)')
     args, _ = parser.parse_known_args(argv)
 
     rep = Report(args.report)
+    watch = rep.file or sys.stderr
+    if args.timeout > 0 and watch is not None:
+        faulthandler.dump_traceback_later(args.timeout, exit=True, file=watch)
     rep.add('app', True, f'{APP_NAME} {__version__}, Python {platform.python_version()}, {platform.platform()}, '
                          f'{"packaged" if getattr(sys, "frozen", False) else "from source"}')
     rep.run('lc_native', check_native)
@@ -145,7 +164,9 @@ def run_self_check(argv):
     if args.model and args.wav:
         rep.run(f'transcribe {os.path.basename(os.path.normpath(args.model))}', lambda: check_transcription(args.model, args.wav, args.cpu))
     if args.ui:
-        rep.run('windows', check_ui)
+        rep.run('windows', lambda: check_ui(rep.write))
     rep.add('result', rep.failed == 0, f'{rep.failed} failed')
-    rep.save()
+    if args.timeout > 0 and watch is not None:
+        faulthandler.cancel_dump_traceback_later()
+    rep.close()
     return 0 if rep.failed == 0 else 1

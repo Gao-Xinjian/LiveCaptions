@@ -28,6 +28,9 @@ datas += collect_data_files('opencc', includes=['clib/share/**'])  # OpenCC's co
 if opts.licenses:
     datas.append((opts.licenses, 'licenses'))
 excludes = ['tkinter', 'pytest', 'PyInstaller', 'PIL']   # Pillow: only optional imports of other libraries
+# A Jupyter kernel in the build environment (e.g. installed by an editor) would come along through optional imports.
+excludes += ['IPython', 'ipykernel', 'jupyter_client', 'jupyter_core', 'jedi', 'parso', 'prompt_toolkit', 'zmq',
+             'tornado', 'comm', 'debugpy', 'matplotlib_inline', 'traitlets']
 if opts.no_faster_whisper:
     excludes += ['faster_whisper', 'ctranslate2', 'onnxruntime', 'av', 'tokenizers']
 

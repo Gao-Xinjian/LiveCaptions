@@ -147,6 +147,12 @@ def main():
           f'({100 * pipe.busy_s / max(audio_s, 1e-9):.0f}% of the audio), transcribed {pipe.run_audio_s:.0f} s of buffers')
     if lats:
         print(f'finalised {sum(lats) / len(lats):.2f} s after speech on average (max {max(lats):.1f} s, last 200 units)')
+    if args.speed > 0 and commits:   # in real time: how far processing lags behind the audio coming in
+        lags = [max(0.0, w * args.speed - a) for w, a, _ in commits]
+        print(f'behind the live audio at commits: {sum(lags) / len(lags):.1f} s on average, {max(lags):.1f} s at most'
+              + (f'; text appears {sum(lats) / len(lats) + sum(lags) / len(lags):.1f} s after speech in all' if lats else ''))
+    if cfg.stream.adapt_on:
+        print(f'adaptive step: longest {pipe.step_max_s:.1f} s, at the end {pipe.step_s:.1f} s')
     print(f'peak RSS {peak_rss[0] / 2**20:.0f} MB')
     if args.ref:
         with open(args.ref, encoding='utf-8-sig') as f:

@@ -31,6 +31,10 @@ class BufferedPolicy(StreamingPolicy):
         self.buf_start = 0
         self.total = 0            # samples received in this session
         self.last_run_end = 0     # absolute sample the last run reached
+        # Run scheduling: the recent run time and the step in use (longer than set when adaptation kicked in).
+        self.run_s_avg = None
+        self.step_s = cfg.stream.step_s
+        self.step_base_s = cfg.stream.step_s
         # Text state.
         self.kept = []            # final units whose audio is still in the buffer
         self.history = []         # unfinished text of recent runs; the last one is shown in grey
@@ -72,6 +76,19 @@ class BufferedPolicy(StreamingPolicy):
         if rc.audio_ctx_mode == 'fixed' and self.engine.name == 'whispercpp':
             limit = min(limit, rc.audio_ctx / 50 - 1.0)
         return max(2.0, limit)
+
+    def get_step_s(self, base):
+        """
+        Return how much new audio to wait for before the next run: base, or longer with adaptation on when recent runs
+        took more than the allowed share of it; then each run covers more audio and inference keeps up (PLAN.md §11.6).
+        """
+        sc = self.cfg.stream
+        step = base
+        if sc.adapt_on and self.run_s_avg is not None:
+            need = self.run_s_avg / (max(30, sc.adapt_load) / 100)
+            step = min(max(base, need), max(base, sc.adapt_max_s))
+        self.step_s, self.step_base_s = step, base
+        return step
 
     def has_text(self):
         """Return whether the current utterance has recognised text (final or unfinished)."""
@@ -206,6 +223,7 @@ class BufferedPolicy(StreamingPolicy):
         out.runs += 1
         out.busy_s += res.seconds
         out.audio_s += n / SAMPLE_RATE
+        self.run_s_avg = res.seconds if self.run_s_avg is None else 0.7 * self.run_s_avg + 0.3 * res.seconds
         out.language = res.language
         self.ep.mark_run()
         self.last_run_end = self.buf_start + self.buf_len  # audio after a shortened run is silence or cut off

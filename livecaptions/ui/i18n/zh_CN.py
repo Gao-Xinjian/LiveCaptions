@@ -418,6 +418,18 @@ TABLE = {
         'Windows 11 会让程序在能效核心上以低频运行。省电；请确认字幕能跟上。',
     'Native log level': '原生库日志级别',
     '1 debug, 2 info, 3 warnings, 4 errors, 5 silent.': '1 调试，2 信息，3 警告，4 错误，5 静默。',
+    # Automatic adaptation.
+    'Run less often when inference falls behind': '推理跟不上时降低运行频率',
+    'When runs take longer than the step allows, the step grows, so each run covers more audio: '
+    'text comes later, but the delay stops growing. VAD-chunked spaces out its previews.':
+        '当每次运行耗时超过运行间隔所允许的比例时，自动拉长运行间隔，让每次运行处理更多音频：字幕出现得晚一些，但延迟不再越积越多。'
+        '“按 VAD 分段”策略会拉长预览间隔。',
+    'Inference share that lengthens the step': '触发拉长间隔的推理占比',
+    'The step grows when a run takes longer than this share of it (recent average).':
+        '最近几次运行的平均耗时超过运行间隔的这个比例时，间隔开始变长。',
+    'Longest adapted step': '自动拉长的最长间隔',
+    'run every': '运行间隔',
+    'Runs are spaced out because inference fell behind.': '推理跟不上，已自动拉长运行间隔。',
     # First-run dialog.
     'Welcome to LiveCaptions': '欢迎使用 LiveCaptions',
     'GPU found:': '找到 GPU：',

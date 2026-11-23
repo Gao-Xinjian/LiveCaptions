@@ -124,8 +124,10 @@ class MonitorStrip(QWidget):
     def show_sample(self, s):
         self.labels['ram'].setText(tr('RAM') + f' {s.rss / 2 ** 20:.0f} MB')
         self.labels['cpu'].setText(tr('CPU') + f' {s.cpu_pct:.0f}%')
-        self.labels['busy'].setText(tr('Inference') + f' {s.busy_pct:.0f}%')
-        self.labels['busy'].setToolTip(tr('Share of time spent in inference') + f'; RTF {s.rtf:.2f}')
+        step = f' · {tr("run every")} {s.step_s:.1f} s' if s.step_adapted else ''
+        self.labels['busy'].setText(tr('Inference') + f' {s.busy_pct:.0f}%' + step)
+        self.labels['busy'].setToolTip(tr('Share of time spent in inference') + f'; RTF {s.rtf:.2f}' +
+                                       ('\n' + tr('Runs are spaced out because inference fell behind.') if step else ''))
         self.labels['gpu'].setText(tr('GPU') + (f' {s.gpu_pct:.0f}%' if s.gpu_pct is not None else ' –'))
         self.labels['gpu'].setVisible(self.cfg.monitor.show_gpu and s.gpu_pct is not None)
         if s.battery_pct is not None:

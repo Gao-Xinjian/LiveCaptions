@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 from livecaptions.ui.i18n import tr
 
 
-def draw_icon(size, color):
+def draw_icon(size, color="#6484C3"):
     """Draw the icon (an audio waveform badge) at one size; also used for the packaged app's icon file."""
     pm = QPixmap(size, size)
     pm.fill(Qt.GlobalColor.transparent)

@@ -137,6 +137,13 @@ class StreamCfg:
     preview_on: bool = opt(False, 'Show a preview while speaking', policies=VC,
                            tip='Transcribe the sentence so far and show it in grey. Costs extra runs.')
     preview_s: float = opt(3.0, 'Preview every', lo=0.5, hi=20.0, step=0.5, unit='s', decimals=1, policies=VC)
+    adapt_on: bool = opt(False, 'Run less often when inference falls behind', live=True,
+                         tip='When runs take longer than the step allows, the step grows, so each run covers more audio: '
+                             'text comes later, but the delay stops growing. VAD-chunked spaces out its previews.')
+    adapt_load: int = opt(80, 'Inference share that lengthens the step', lo=30, hi=100, step=5, unit='%', advanced=True,
+                          live=True, tip='The step grows when a run takes longer than this share of it (recent average).')
+    adapt_max_s: float = opt(6.0, 'Longest adapted step', lo=1.0, hi=20.0, step=0.5, unit='s', decimals=1, advanced=True,
+                             live=True)
     window_s: float = opt(10.0, 'Window length', lo=2.0, hi=29.0, step=1.0, unit='s', decimals=0, policies=SW,
                           tip='When the window is this long, its text becomes final and a new window starts.')
     keep_s: float = opt(1.0, 'Overlap kept for the next window', lo=0.0, hi=5.0, step=0.1, unit='s', decimals=1,

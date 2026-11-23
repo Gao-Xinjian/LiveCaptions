@@ -21,6 +21,7 @@ jobs:
           - os: macos-latest   # arm64; a pinned macos-NN label stops working when GitHub retires that image
             gpu: metal
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60   # a normal run takes 6-20 min; GitHub's default would wait 6 h on a hang
     env:
       PYTHONIOENCODING: utf-8   # the replay output has non-ASCII text
     steps:
@@ -80,18 +81,25 @@ jobs:
           python -m pip install -e ".[package]"
           python scripts/build_app.py
 
+      # --timeout: a hanging check writes every thread's stack into its report and exits after 5 min.
       - name: Check the packaged app (windows offscreen, one transcription per backend)
         shell: bash
+        timeout-minutes: 15
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           if [ "$RUNNER_OS" = macOS ]; then app=dist/LiveCaptions.app/Contents/MacOS/LiveCaptions; else app=dist/LiveCaptions/LiveCaptions.exe; fi
           wav=build/_deps/whisper-src/samples/jfk.wav
           status=0
-          "$app" --self-check --ui --cpu --model ci-models/ggml-tiny-q5_1.bin --wav $wav --report check-whispercpp.txt || status=1
-          "$app" --self-check --cpu --model ci-models/fw-tiny --wav $wav --report check-fasterwhisper.txt || status=1
+          "$app" --self-check --ui --cpu --model ci-models/ggml-tiny-q5_1.bin --wav $wav --timeout 300 --report check-whispercpp.txt || status=1
+          "$app" --self-check --cpu --model ci-models/fw-tiny --wav $wav --timeout 300 --report check-fasterwhisper.txt || status=1
           cat check-whispercpp.txt check-fasterwhisper.txt
           exit $status
+
+      - name: Show the self-check reports (after a failure or a time-out)
+        if: failure()
+        shell: bash
+        run: cat check-*.txt || true
 
       - uses: actions/upload-artifact@v7
         with:

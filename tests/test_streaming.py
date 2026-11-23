@@ -1,5 +1,6 @@
 """Endpointer, energy VAD and LocalAgreement with a scripted engine (no model needed)."""
 import numpy as np
+import pytest
 
 from livecaptions import SAMPLE_RATE
 from livecaptions.config.schema import Config
@@ -73,6 +74,7 @@ class ScriptedEngine(ASREngine):
         self.policy = None
         self.calls = 0
         self.lengths = []  # seconds of audio per run
+        self.run_s = 0.01  # reported inference time per run
 
     def tokenize(self, text):
         return list(range(len(text.split())))
@@ -88,7 +90,7 @@ class ScriptedEngine(ASREngine):
             if start <= (t0 + t1) / 2 < end:  # a word is heard if most of it is in the buffer
                 pieces.append(Piece((' ' + w).encode(), max(0.0, t0 - start), min(end, t1) - start))
         segs = [Segment(pieces[0].t0, pieces[-1].t1, pieces)] if pieces else []
-        return TranscribeResult(segs, 'en', 0.01)
+        return TranscribeResult(segs, 'en', self.run_s)
 
 
 def feed(policy, seconds, speech, chunk_s=0.1, tentative=None):
@@ -207,3 +209,32 @@ def test_sliding_window_commits_full_windows():
     assert n >= 20 and text.split() == words[:n]   # overlap text is not repeated
     text += feed(pol, 1.5, speech=False)
     assert text.split() == words
+
+
+def test_adaptive_step_spaces_out_slow_runs():
+    """Runs of 1.5 s with a 1 s step fall behind; adaptation stretches the step to 1.5 s / 80 % and back."""
+    words = [f'w{i}' for i in range(30)]
+    fixed, eng_fixed = make_policy(words)
+    eng_fixed.run_s = 1.5
+    feed(fixed, 12.0, speech=True)
+    assert fixed.step_s == 1.0                          # off by default
+    pol, eng = make_policy(words, adapt_on=True)
+    eng.run_s = 1.5
+    text = feed(pol, 12.0, speech=True)
+    assert pol.step_s == pytest.approx(1.5 / 0.8, abs=0.01)
+    assert eng.calls < 0.7 * eng_fixed.calls            # fewer runs for the same audio
+    assert text.split() and text.split() == words[:len(text.split())]   # nothing lost or repeated
+    eng.run_s = 0.1                                     # runs get fast again: back to the set step
+    feed(pol, 6.0, speech=True)
+    assert pol.step_s == pytest.approx(1.0)
+
+
+def test_adaptive_step_ceiling_and_previews():
+    pol, eng = make_policy(['a'] * 40, adapt_on=True, adapt_max_s=4.0)
+    eng.run_s = 10.0
+    feed(pol, 15.0, speech=True)
+    assert pol.step_s == pytest.approx(4.0)             # never beyond the longest adapted step
+    vc, eng = make_policy(['a'] * 40, policy='vad_chunk', preview_on=True, preview_s=3.0, adapt_on=True)
+    eng.run_s = 4.0
+    feed(vc, 15.0, speech=True)
+    assert vc.step_base_s == 3.0 and vc.step_s == pytest.approx(4.0 / 0.8)   # previews are spaced out

@@ -80,6 +80,9 @@ class Pipeline:
         self.run_audio_s = 0.0
         self.latencies = []
         self.language = ''
+        self.step_s = 0.0          # step the policy waits for between runs (longer than set when adapted)
+        self.step_adapted = False
+        self.step_max_s = 0.0
 
     def start(self):
         self.thread = threading.Thread(target=self._run, name='pipeline', daemon=True)
@@ -127,6 +130,9 @@ class Pipeline:
         self.latencies = (self.latencies + out.latencies)[-200:]
         if out.language:
             self.language = out.language
+        pol = self.policy
+        self.step_s, self.step_adapted = pol.step_s, pol.step_s > pol.step_base_s + 0.05
+        self.step_max_s = max(self.step_max_s, pol.step_s)
 
     def _emit_level(self, chunk, vad, ep):
         n = len(chunk) // PEAK_COL * PEAK_COL

@@ -23,7 +23,7 @@ class VadChunkPolicy(BufferedPolicy):
             self._cut_at_quietest(out)
         elif not open_:
             self._keep_preroll(out)
-        elif sc.preview_on and self.ep.speech_since_run and self.get_new_s() >= sc.preview_s:
+        elif sc.preview_on and self.ep.speech_since_run and self.get_new_s() >= self.get_step_s(sc.preview_s):
             units, new, _, _ = self._run_new(out)
             self.history = [new]  # shown in grey; final only at the endpoint
             self._drop_noise(units, had_text, out)

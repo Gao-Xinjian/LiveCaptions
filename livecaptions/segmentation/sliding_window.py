@@ -39,7 +39,7 @@ class SlidingWindowPolicy(BufferedPolicy):
             self._keep_preroll(out)
         elif self.get_buffer_s() >= self.get_window_s():
             self._close_window(out)
-        elif self.ep.speech_since_run and self.get_new_s() >= sc.step_s:
+        elif self.ep.speech_since_run and self.get_new_s() >= self.get_step_s(sc.step_s):
             units, new, _, _ = self._run_new(out)
             self.history = [new]
             self._drop_noise(units, had_text, out)

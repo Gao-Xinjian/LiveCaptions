@@ -60,7 +60,7 @@ class LocalAgreementPolicy(BufferedPolicy):
             self._cut_at_quietest(out)
         elif not open_:
             self._keep_preroll(out)
-        elif self.ep.speech_since_run and self.get_new_s() >= sc.step_s:
+        elif self.ep.speech_since_run and self.get_new_s() >= self.get_step_s(sc.step_s):
             units, new, seg_ends, skip = self._run_new(out)
             cut, cut_units = self._agree(units, new, seg_ends, skip, out)
             if self.get_buffer_s() > min(sc.trim_after_s, self.get_max_buffer_s() - 2.0) and cut > self.buf_start:

@@ -13,6 +13,8 @@ class Sample:
     cpu_pct: float = 0.0         # of all cores, or of one core if per_core
     busy_pct: float = 0.0        # share of wall time spent in inference
     rtf: float = 0.0             # inference seconds per second of audio captured (real-time factor)
+    step_s: float = 0.0          # the policy's step between runs
+    step_adapted: bool = False   # lengthened because inference fell behind
     gpu_pct: float | None = None
     battery_pct: float | None = None
     plugged: bool | None = None
@@ -73,6 +75,7 @@ class ResourceSampler:
             self._busy, self._audio = pipeline.busy_s, pipeline.audio_s
             s.busy_pct = 100.0 * max(0.0, d_busy) / dt
             s.rtf = d_busy / d_audio if d_audio > 0 else 0.0
+            s.step_s, s.step_adapted = pipeline.step_s, pipeline.step_adapted
         else:
             self._busy = self._audio = 0.0
         if with_gpu and self.gpu is not None:
