@@ -1,8 +1,10 @@
-"""Automatic gain, TEN VAD, the GitHub download check, and system audio capture (macOS tap smoke test)."""
+"""Automatic gain, TEN VAD, the GitHub download check, and capture smoke tests (macOS tap, microphone)."""
 import os
+import subprocess
 import sys
 import tempfile
 import time
+import wave
 
 import numpy as np
 import pytest
@@ -77,36 +79,51 @@ def test_ten_vad_found_in_models_folder(tmp_path):
     assert manager.detect_format(str(tmp_path / get_ten_lib_name())) == 'vad'
 
 
-@pytest.mark.skipif(not (sys.platform == 'darwin' and native.is_available()), reason='macOS only')
-def test_macos_tap_smoke():
-    """
-    Open, start and close the process tap. Without the permission it may fail to open: then skip.
+def play_tone(seconds):
+    """Play a 440 Hz tone with afplay (macOS) in the background and return the process."""
+    path = os.path.join(tempfile.mkdtemp(), 'tone.wav')
+    t = np.arange(int(48000 * seconds)) / 48000
+    data = (0.3 * np.sin(2 * np.pi * 440 * t) * 32767).astype('<i2')
+    with wave.open(path, 'wb') as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(data.tobytes())
+    return subprocess.Popen(['afplay', path])
 
-    Prints how long each step took (lc_native logs the Core Audio calls too); see it with pytest -rP.
+
+def measure_capture(audio_cfg, seconds, on_started=None):
+    """
+    Open, start, read and close a capture, timing each step and printing the result; skip if it cannot open.
+
+    Args:
+        audio_cfg: AudioCfg with the source to open
+        seconds: how long to read
+        on_started: called right after the capture started, e.g. to play a sound
+
+    Returns:
+        (times, n_samples, peak): seconds per step, samples read and their peak
     """
     from livecaptions.audio.capture import NativeCapture
-    from livecaptions.audio.devices import supports_system_audio
-    if not supports_system_audio():
-        pytest.skip('needs macOS 14.2+')
-    cfg = Config().audio
-    cfg.source = 'system'
-    native.set_log_level(2)  # info: the per-call timings from lc_tap_macos.mm
+    native.set_log_level(2)  # info: lc_tap_macos.mm logs its Core Audio calls
     times = {}
     t0 = time.monotonic()
     try:
-        cap = NativeCapture(cfg)
+        cap = NativeCapture(audio_cfg)
     except native.NativeError as e:
         native.set_log_level(3)
-        pytest.skip(f'tap not available here: {e}')
+        pytest.skip(f'cannot open the {audio_cfg.source} capture here: {e}')
     times['open'] = time.monotonic() - t0
     n_samples, peak = 0, 0.0
     try:
         t0 = time.monotonic()
         cap.start()
         times['start'] = time.monotonic() - t0
+        if on_started:
+            on_started()
         t0 = time.monotonic()
-        while time.monotonic() - t0 < 1.0:
-            x = cap.read(100)  # silence or nothing is fine; it must not crash
+        while time.monotonic() - t0 < seconds:
+            x = cap.read(100)
             n_samples += len(x)
             peak = max(peak, float(np.abs(x).max())) if len(x) else peak
     finally:
@@ -117,4 +134,36 @@ def test_macos_tap_smoke():
         cap.close()
         times['close'] = time.monotonic() - t0
         native.set_log_level(3)
-    print(', '.join(f'{k} {v:.2f} s' for k, v in times.items()), f'| read {n_samples} samples in 1 s, peak {peak:.3f}')
+    print(f'{audio_cfg.source}:', ', '.join(f'{k} {v:.2f} s' for k, v in times.items()),
+          f'| read {n_samples} samples in {seconds:.0f} s, peak {peak:.3f}')
+    return times, n_samples, peak
+
+
+@pytest.mark.skipif(not (sys.platform == 'darwin' and native.is_available()), reason='macOS only')
+def test_macos_tap_smoke():
+    """
+    Open the process tap and read while afplay plays a tone; skip if it cannot open.
+
+    Without the system audio recording permission the IO calls wait for minutes and no audio arrives (CI grants the
+    permission first). It must not crash; timings, samples and the peak are printed (pytest -rP).
+    """
+    from livecaptions.audio.devices import supports_system_audio
+    if not supports_system_audio():
+        pytest.skip('needs macOS 14.2+')
+    cfg = Config().audio
+    cfg.source = 'system'
+    players = []
+    measure_capture(cfg, 2.0, on_started=lambda: players.append(play_tone(1.5)))
+    for p in players:
+        try:
+            p.wait(10)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+
+@pytest.mark.skipif(os.environ.get('LC_TEST_MIC') != '1', reason='set LC_TEST_MIC=1 to open the default microphone')
+def test_mic_smoke():
+    """Open the default microphone through miniaudio and read 1 s; timings, samples and the peak are printed."""
+    cfg = Config().audio
+    cfg.source = 'mic'
+    measure_capture(cfg, 1.0)

@@ -88,9 +88,11 @@ words; "fit to the audio" was slower, because whisper.cpp sets up the GPU again 
 
 Unit tests need nothing else. More tests run when these point to files: `LC_TEST_MODEL` (ggml model), `LC_TEST_WAV`,
 `LC_TEST_FW_MODEL` (CTranslate2 folder), `LC_TEST_TEN_VAD` (TEN VAD library; or `LC_TEST_TEN_DOWNLOAD=1` to fetch it).
+`LC_TEST_MIC=1` also reads the default microphone for 1 s.
 `.github/workflows/ci.yml` builds `lc_native` (CPU on Windows; Metal and the process tap on the newest macOS, arm64), runs the
-tests with both backends' tiny models and TEN VAD, and opens the macOS tap once (skipped if the runner refuses it).
-CI cannot test capture devices, the GPU, the caption window or power use.
+tests with both backends' tiny models and TEN VAD, and on macOS reads the runner's virtual microphone and opens the tap
+while a tone plays (after granting the system audio recording permission). CI cannot test real audio hardware, the GPU,
+the caption window or power use.
 
 ## Layout
 

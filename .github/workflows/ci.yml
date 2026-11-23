@@ -57,6 +57,19 @@ jobs:
         if: runner.os == 'macOS'
         run: system_profiler SPAudioDataType
 
+      # The image grants the microphone to the runner agents (they are the "responsible" processes of every step) but
+      # not system audio recording; without it the tap's IO calls wait for a prompt nobody answers. Same row format as
+      # the image's own configure-tccdb-macos.sh; a failed write only leaves the test as it was.
+      - name: Allow system audio recording (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          now=$(date +%s)
+          for client in /opt/hca/hosted-compute-agent /usr/local/opt/runner/provisioner/provisioner; do
+            row="'kTCCServiceAudioCapture','$client',1,2,4,1,NULL,NULL,NULL,'UNUSED',NULL,NULL,$now,NULL,NULL,'UNUSED',$now"
+            sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR REPLACE INTO access VALUES($row);" || echo "system TCC.db not written"
+            sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR REPLACE INTO access VALUES($row);" || echo "user TCC.db not written"
+          done
+
       - name: Tests
         shell: bash
         env:
@@ -65,6 +78,7 @@ jobs:
           LC_TEST_WAV: build/_deps/whisper-src/samples/jfk.wav
           LC_TEST_DEVICE: cpu
           LC_TEST_TEN_DOWNLOAD: '1'
+          LC_TEST_MIC: '1'   # the runners' default input; skipped where there is none
         run: python -m pytest -v -rsP   # P: output of passed tests, e.g. the macOS tap timings
 
       - name: Replay the sample with each policy (prints latency and load)
