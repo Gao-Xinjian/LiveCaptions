@@ -197,12 +197,15 @@ class BufferedPolicy(StreamingPolicy):
         q = self.ep.find_quietest(max(self.buf_start, end - int(self.cfg.stream.smart_cut_s * SAMPLE_RATE)), end)
         units, _ = self._run(out, upto=q - self.buf_start)
         skip = kept_prefix(units, self.kept)
-        if skip >= len(self.kept):  # all final text is before q: what else was heard there is final too
+        n_before = sum(1 for u in self.kept if u.t1 * SAMPLE_RATE <= q)   # by time: the run may word it differently
+        if n_before >= len(self.kept):  # all final text is before q: what else was heard there is final too
+            if self.kept and skip < len(self.kept):   # final text heard differently: the new text starts after it
+                skip = next((i for i, u in enumerate(units) if (u.t0 + u.t1) / 2 >= self.kept[-1].t1), len(units))
             self._commit(self._drop_terms_only(units, skip)[skip:], out)
             self.history = []
             self._trim_to(q, len(self.kept), out)
         else:  # final text reaches past q: it stays with its audio, the next run skips it
-            self._trim_to(q, skip, out)
+            self._trim_to(q, n_before, out)
         self.last_run_end = self.buf_start  # the rest is new to the next run
         self.ep.speech_since_run = True
 

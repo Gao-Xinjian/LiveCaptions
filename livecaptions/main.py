@@ -55,10 +55,25 @@ def notify_running_instance(key):
     return False
 
 
+def exit_now(code):
+    """
+    End the process without the interpreter's teardown. The packaged macOS app hangs there after CTranslate2 has run
+    (CI, 2026-11-23), and a process left behind keeps the single-instance socket, so the app could not start again.
+    Called when settings and sessions are saved.
+    """
+    for f in (sys.stdout, sys.stderr):
+        try:
+            if f is not None:
+                f.flush()
+        except (OSError, ValueError):
+            pass
+    os._exit(code)
+
+
 def main():
     if '--self-check' in sys.argv[1:]:
         from livecaptions.selfcheck import run_self_check
-        return run_self_check(sys.argv[1:])
+        exit_now(run_self_check(sys.argv[1:]))
     if getattr(sys, 'frozen', False):
         redirect_output_to_log()
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
@@ -80,7 +95,9 @@ def main():
         if conn is not None:
             conn.readyRead.connect(lambda: ctl.on_tray('show_main'))
     server.newConnection.connect(on_connection)
-    return app.exec()
+    code = app.exec()
+    server.close()
+    exit_now(code)
 
 
 if __name__ == '__main__':
