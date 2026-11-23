@@ -1,33 +1,43 @@
 """Tray / menu bar icon, and the app icon drawn in code (no image files)."""
+import math
 from PySide6.QtCore import QRectF, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap, QPainterPath, QPen
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
-
 from livecaptions.ui.i18n import tr
 
 
-def draw_icon(size, color='#3A6FD8'):
-    """Draw the icon (a 'CC' caption badge) at one size; also used for the packaged app's icon file."""
+def draw_icon(size, color):
+    """Draw the icon (an audio waveform badge) at one size; also used for the packaged app's icon file."""
     pm = QPixmap(size, size)
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QColor(color))
-    p.drawRoundedRect(QRectF(0, size * 0.12, size, size * 0.76), size * 0.18, size * 0.18)
-    font = QFont()
-    font.setBold(True)
-    font.setPixelSize(int(size * 0.42))
-    p.setFont(font)
-    p.setPen(QColor('white'))
-    p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, 'CC')
+    p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.20, size * 0.20)
+
+    path = QPainterPath()
+    path.moveTo(size * 0.10, size * 0.50)
+    path.lineTo(size * 0.20, size * 0.50)
+    path.cubicTo(size * 0.245, size * 0.50, size * 0.255, size * 0.22, size * 0.300, size * 0.22)
+    path.cubicTo(size * 0.345, size * 0.22, size * 0.355, size * 0.78, size * 0.400, size * 0.78)
+    path.cubicTo(size * 0.445, size * 0.78, size * 0.455, size * 0.12, size * 0.500, size * 0.12)
+    path.cubicTo(size * 0.545, size * 0.12, size * 0.555, size * 0.90, size * 0.600, size * 0.90)
+    path.cubicTo(size * 0.645, size * 0.90, size * 0.655, size * 0.38, size * 0.700, size * 0.38)
+    path.cubicTo(size * 0.745, size * 0.38, size * 0.755, size * 0.50, size * 0.800, size * 0.50)
+    path.lineTo(size * 0.90, size * 0.50)
+
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.setPen(QPen(QColor('white'), size * 0.055, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+    p.drawPath(path)
+
     p.end()
     return pm
 
 
 def make_icon(state='idle'):
     """Return the app icon; state 'running' and 'paused' change its colour."""
-    color = {'running': '#2E9E5B', 'paused': '#D08A1E'}.get(state, '#3A6FD8')
+    color = {'running': "#409E65", 'paused': "#C69956"}.get(state, "#6484C3")
     icon = QIcon()
     for size in (16, 24, 32, 48, 64, 128, 256):
         icon.addPixmap(draw_icon(size, color))
