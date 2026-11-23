@@ -53,6 +53,10 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -c "import livecaptions.ui.app, livecaptions.main; print('ui ok')"
 
+      - name: List audio devices (macOS; the tap test logs which one it uses)
+        if: runner.os == 'macOS'
+        run: system_profiler SPAudioDataType
+
       - name: Tests
         shell: bash
         env:

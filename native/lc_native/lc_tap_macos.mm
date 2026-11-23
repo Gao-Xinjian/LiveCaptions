@@ -52,6 +52,35 @@ NSString * GetStringProperty(AudioObjectID obj, AudioObjectPropertySelector sel)
     return (__bridge_transfer NSString *) s;
 }
 
+UInt32 GetUIntProperty(AudioObjectID obj, AudioObjectPropertySelector sel) {
+    AudioObjectPropertyAddress addr  = MakeAddr(sel);
+    UInt32                     value = 0;
+    UInt32                     size  = sizeof(value);
+    return AudioObjectGetPropertyData(obj, &addr, 0, nullptr, &size, &value) == noErr ? value : 0;
+}
+
+// Turns a four-character code such as the transport type 'bltn' into text.
+std::string Fourcc2Str(UInt32 v) {
+    std::string s;
+    for (int shift = 24; shift >= 0; shift -= 8) {
+        const char c = (char) ((v >> shift) & 0xff);
+        s += std::isprint((unsigned char) c) ? c : '?';
+    }
+    return s;
+}
+
+// Logs the device that clocks the tap: on CI its IO calls time out, so record what it is.
+void LogOutputDevice(AudioObjectID dev, NSString * uid) {
+    AudioObjectPropertyAddress addr = MakeAddr(kAudioDevicePropertyNominalSampleRate);
+    Float64                    rate = 0;
+    UInt32                     size = sizeof(rate);
+    AudioObjectGetPropertyData(dev, &addr, 0, nullptr, &size, &rate);
+    NSString * name = GetStringProperty(dev, kAudioObjectPropertyName);
+    LcLog(kLcLogInfo, "lc_tap: output device \"%s\" (%s), alive %u, transport '%s', %.0f Hz\n", name ? name.UTF8String : "?",
+          uid.UTF8String, (unsigned) GetUIntProperty(dev, kAudioDevicePropertyDeviceIsAlive),
+          Fourcc2Str(GetUIntProperty(dev, kAudioDevicePropertyTransportType)).c_str(), rate);
+}
+
 // Splits "com.google.Chrome, us.zoom.xos" into bundle IDs.
 std::vector<std::string> SplitApps(const char * text) {
     std::vector<std::string> out;
@@ -196,6 +225,8 @@ bool LcTapOpen(lc_audio * a, const lc_audio_params * p, std::string & err) {
                 LcTapClose(a);
                 return false;
             }
+            LogOutputDevice(out_dev, out_uid);
+            t0 = LcNowNs();
             NSDictionary * agg_desc = @{
                 @kAudioAggregateDeviceNameKey : @"LiveCaptions tap",
                 @kAudioAggregateDeviceUIDKey : [NSUUID UUID].UUIDString,
