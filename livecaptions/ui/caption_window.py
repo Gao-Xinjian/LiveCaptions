@@ -3,6 +3,7 @@ from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QTextBlockFormat, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QFrame, QMenu, QPlainTextEdit, QSizeGrip, QVBoxLayout, QWidget
 
+from livecaptions.ui.fonts import add_cjk_fallback
 from livecaptions.ui.i18n import tr
 
 
@@ -44,7 +45,7 @@ class CaptionView(QPlainTextEdit):
         fg, _, tent = get_scheme_colors(cc)
         fg.setAlphaF(cc.text_opacity)
         tent.setAlphaF(cc.text_opacity)
-        font = QFont(cc.font_family) if cc.font_family else QFont(self.font().family())
+        font = add_cjk_fallback(QFont(cc.font_family) if cc.font_family else QFont(self.font().family()))
         font.setPointSize(cc.font_size)
         font.setBold(cc.bold)
         self.setFont(font)

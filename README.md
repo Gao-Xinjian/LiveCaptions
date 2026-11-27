@@ -15,6 +15,8 @@ or [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
 - **Power**: no inference while the VAD hears no speech (Silero through whisper.cpp, or TEN VAD, both with automatic
   gain for quiet, distant speakers; or an adaptive energy threshold),
   a warmed-up GPU, priority and Windows EcoQoS options, a monitor strip with RAM / CPU / inference / GPU load and battery.
+  Optional automatic adaptation (Streaming page, off by default): when runs take longer than the step allows, the step
+  grows (up to a limit), so text comes later but the delay stops growing; VAD-chunked spaces out its previews.
 - **Captions**: floating window (always on top, click-through, colours, opacity, font, lines) or docked in the main window,
   scroll back and copy. Start/pause, stop, show/hide and click-through are buttons in the main window and the tray
   menu; optional hotkeys too (global on Windows, only while the app is active on macOS).
@@ -156,8 +158,7 @@ tests/
 
 ## Not done yet
 
-Trying it on a real Mac (CI only builds and unit-tests it); optional automatic adaptation when inference falls behind;
-signing the packages.
+Trying it on a real Mac (CI only builds and unit-tests it).
 
 ## Licence
 

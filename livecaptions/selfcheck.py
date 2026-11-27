@@ -111,6 +111,8 @@ def check_ui(step):
     cfg_dir = tempfile.mkdtemp()
     store.get_config_dir = lambda: cfg_dir   # leave the real settings alone
     app = QApplication.instance() or QApplication([sys.argv[0]])
+    from livecaptions.ui.fonts import add_cjk_fallback, get_cjk_family
+    app.setFont(add_cjk_fallback(app.font()))   # as main() does
     from livecaptions.ui.app import Controller
     from livecaptions.ui.first_run import FirstRunDialog
     Controller.show_first_run = lambda self: None   # it would wait for a click; this check builds the dialog itself
@@ -136,7 +138,7 @@ def check_ui(step):
     if n_choices == 0:
         raise RuntimeError('the first-run dialog found no models in the registry')
     return (f'Qt platform {app.platformName()}, main window {size.width()}x{size.height()}, first-run dialog with '
-            f'{n_choices} models, Chinese text loads')
+            f'{n_choices} models, Chinese text loads, Chinese font: {get_cjk_family() or "none found"}')
 
 
 def run_self_check(argv):

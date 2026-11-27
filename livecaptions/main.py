@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from livecaptions import APP_NAME
 from livecaptions.config.store import load_config
+from livecaptions.ui.fonts import add_cjk_fallback
 
 
 def get_log_path():
@@ -80,6 +81,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setQuitOnLastWindowClosed(False)  # the tray keeps the app alive
+    app.setFont(add_cjk_fallback(app.font()))  # Chinese text in one font, not mixed per character
     key = get_instance_key()
     if notify_running_instance(key):
         return 0

@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         top_lay = QHBoxLayout(top)
         top_lay.setContentsMargins(0, 0, 0, 0)
         self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(170)
+        self.sidebar.setFixedWidth(125)
         self.stack = QStackedWidget()
         self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
         top_lay.addWidget(self.sidebar)
@@ -75,15 +75,17 @@ class MainWindow(QMainWindow):
         self.build_pages()
         self.retranslate_controls()
         self.resize(980, 720)
+        self.setMinimumSize(920, 620)
 
     # Controls.
 
     def _build_controls(self):
         row = QHBoxLayout()
         self.b_start = QPushButton()
-        self.b_start.setMinimumWidth(110)
+        self.b_start.setMinimumWidth(100)
         self.b_start.clicked.connect(self.ctl.start_or_pause)
         self.b_stop = QPushButton()
+        self.b_stop.setMinimumWidth(100)
         self.b_stop.clicked.connect(self.ctl.stop)
         self.b_captions = QPushButton()
         self.b_captions.clicked.connect(lambda: self.ctl.on_tray('show_captions'))
@@ -94,7 +96,10 @@ class MainWindow(QMainWindow):
         self.b_folder.clicked.connect(self.ctl.open_session_folder)
         self.status = QLabel()
         self.status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.status.setMinimumWidth(0)
         self.elapsed = QLabel('00:00:00')
+        for button in (self.b_start, self.b_stop, self.b_captions, self.b_click, self.b_folder):
+            button.setFixedSize(150, 40)
         row.addWidget(self.b_start)
         row.addWidget(self.b_stop)
         row.addWidget(self.status, 1)
