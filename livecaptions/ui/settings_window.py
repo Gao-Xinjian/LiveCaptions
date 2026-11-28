@@ -3,17 +3,17 @@ import os
 import sys
 
 from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QListWidget,
-                               QMainWindow, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSplitter,
-                               QStackedWidget, QVBoxLayout, QWidget)
+                               QMainWindow, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy,
+                               QSplitter, QStackedWidget, QStyle, QVBoxLayout, QWidget)
 
 from livecaptions import native
 from livecaptions.audio.devices import list_devices, supports_system_audio
 from livecaptions.config import store
 from livecaptions.engines.fasterwhisper import get_cuda_count
 from livecaptions.segmentation.prompt import split_terms, terms2line
-from livecaptions.ui.forms import SectionForm
+from livecaptions.ui.forms import SectionForm, allow_shrink
 from livecaptions.ui.i18n import tr
 from livecaptions.ui.model_widgets import ModelPicker
 from livecaptions.ui.monitor_strip import MonitorStrip
@@ -26,7 +26,8 @@ PAGES = [
     ('Model', [('model', '')]),
     ('Recognition', [('recog', '')]),
     ('Segmentation', [('stream', '')]),
-    ('VAD & filters', [('vad', 'Speech detection'), ('filters', 'Hallucination filters')]),
+    ('VAD', [('vad', '')]),
+    ('Filters', [('filters', '')]),
     ('Terms', [('terms', '')]),
     ('Saving', [('save', '')]),
     ('Captions', [('caption', '')]),
@@ -76,8 +77,9 @@ class MainWindow(QMainWindow):
         outer.addLayout(self._build_controls())
         self.build_pages()
         self.retranslate_controls()
-        self.resize(980, 720)
-        self.setMinimumSize(920, 620)
+        # The smallest window shows the whole page list (see build_pages); it starts narrow to leave little empty space.
+        hint = self.minimumSizeHint()
+        self.resize(hint.width(), max(hint.height(), 620))
 
     # Controls.
 
@@ -99,16 +101,17 @@ class MainWindow(QMainWindow):
         self.status = QLabel()
         self.status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.status.setMinimumWidth(0)
+        self.status.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)   # long text never widens the window
         self.elapsed = QLabel('00:00:00')
-        for button in (self.b_start, self.b_stop, self.b_captions, self.b_click, self.b_folder):
-            button.setFixedSize(150, 40)
+        self.buttons = (self.b_start, self.b_stop, self.b_captions, self.b_click, self.b_folder)
         row.addWidget(self.b_start)
         row.addWidget(self.b_stop)
-        row.addWidget(self.status, 1)
         row.addWidget(self.elapsed)
+        row.addStretch(1)
         row.addWidget(self.b_captions)
         row.addWidget(self.b_click)
         row.addWidget(self.b_folder)
+        self.statusBar().addWidget(self.status, 1)   # the full width along the bottom, at any window size
         return row
 
     def retranslate_controls(self):
@@ -125,9 +128,16 @@ class MainWindow(QMainWindow):
         for b in (self.b_captions, self.b_click):   # docked captions live in this window
             b.setEnabled(not cc.docked)
         self.b_folder.setText(tr('Open folder'))
+        # All buttons as wide as the longest label they can have in this language, and 40 px high.
+        fm = QFontMetrics(self.b_start.font())
+        texts = ('Start', 'Pause', 'Resume', 'Stop', 'Show / hide captions', 'Click-through', 'Open folder')
+        width = max(fm.horizontalAdvance(tr(t)) for t in texts) + 24
+        for b in self.buttons:
+            b.setFixedSize(width, 40)
 
     def set_status(self, text):
         self.status.setText(text)
+        self.status.setToolTip(text)
 
     # Pages.
 
@@ -173,13 +183,26 @@ class MainWindow(QMainWindow):
                 lay.addStretch(1)
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)   # never cut off sideways
             scroll.setWidget(page)
             self.stack.addWidget(scroll)
             self.sidebar.addItem(tr(title))
         self.sidebar.blockSignals(False)
+        rows = sum(self.sidebar.sizeHintForRow(i) for i in range(self.sidebar.count()))
+        self.sidebar.setMinimumHeight(rows + 2 * self.sidebar.frameWidth() + 4)   # every page name visible, no scrolling
+        self.update_page_width()
         self.sidebar.setCurrentRow(min(current, self.sidebar.count() - 1))
         self.stack.setCurrentIndex(self.sidebar.currentRow())
         self.update_backend()
+
+    def update_page_width(self):
+        """Keep the page area as wide as the widest page needs, so no page is cut off on the right."""
+        pages = [self.stack.widget(i).widget() for i in range(self.stack.count())]
+        for page in pages:   # hidden pages keep stale sizes after their content changed: drop every cached size
+            for w in page.findChildren(QWidget):
+                w.updateGeometry()
+        widest = max(page.minimumSizeHint().width() for page in pages)
+        self.stack.setMinimumWidth(widest + self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent) + 4)
 
     def update_backend(self):
         """Grey out options of the other backend or policy and refresh the backend-specific pickers."""
@@ -237,7 +260,7 @@ class MainWindow(QMainWindow):
         w = QWidget()
         lay = QHBoxLayout(w)
         lay.setContentsMargins(0, 0, 0, 0)
-        combo = QComboBox()
+        combo = allow_shrink(QComboBox())
         btn = QPushButton(tr('Refresh'))
         lay.addWidget(combo, 1)
         lay.addWidget(btn)
@@ -274,7 +297,7 @@ class MainWindow(QMainWindow):
         return picker
 
     def _make_gpu_picker(self, form, f, value):
-        combo = QComboBox()
+        combo = allow_shrink(QComboBox())
         self.pickers['gpu'] = combo
         combo.currentIndexChanged.connect(lambda idx: self._pick_gpu(form, combo, idx))
         return combo
@@ -306,7 +329,7 @@ class MainWindow(QMainWindow):
         w = QWidget()
         lay = QHBoxLayout(w)
         lay.setContentsMargins(0, 0, 0, 0)
-        combo = QComboBox()
+        combo = allow_shrink(QComboBox())
         b_new = QPushButton(tr('New…'))
         b_del = QPushButton(tr('Delete'))
         lay.addWidget(combo, 1)
@@ -395,9 +418,7 @@ class MainWindow(QMainWindow):
             self.terms_count.setText(f'{len(words)} ' + tr('terms') + f', {n} / {limit} ' + tr('tokens') + warn)
 
     def _build_general_buttons(self):
-        box = QWidget()
-        lay = QHBoxLayout(box)
-        lay.setContentsMargins(0, 0, 0, 0)
+        lay = QHBoxLayout()
         b_exp = QPushButton(tr('Export settings…'))
         b_imp = QPushButton(tr('Import settings…'))
         b_dir = QPushButton(tr('Open the settings folder'))
@@ -408,11 +429,21 @@ class MainWindow(QMainWindow):
         b_dir.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(store.get_config_dir())))
         b_reset.clicked.connect(self._reset)
         b_quit.clicked.connect(self.ctl.quit)
-        for b in (b_exp, b_imp, b_dir, b_reset):
-            lay.addWidget(b)
+        lay.addWidget(b_exp)
+        lay.addWidget(b_imp)
+        lay.addWidget(b_dir)
         lay.addStretch(1)
-        lay.addWidget(b_quit)
-        return box
+        row2 = QHBoxLayout()   # two rows, so these buttons do not set the window's width
+        row2.addWidget(b_reset)
+        row2.addStretch(1)
+        row2.addWidget(b_quit)
+        outer = QVBoxLayout()
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addLayout(lay)
+        outer.addLayout(row2)
+        wrap = QWidget()
+        wrap.setLayout(outer)
+        return wrap
 
     def _export(self):
         path, _ = QFileDialog.getSaveFileName(self, tr('Export settings'), 'livecaptions.toml', 'TOML (*.toml)')

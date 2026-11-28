@@ -14,7 +14,9 @@ or [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
   - *Sliding window* (whisper.cpp `stream` style): the current window is re-run every step and becomes final when full.
 - **Power**: no inference while the VAD hears no speech (Silero through whisper.cpp, or TEN VAD, both with automatic
   gain for quiet, distant speakers; or an adaptive energy threshold),
-  a warmed-up GPU, priority and Windows EcoQoS options, a monitor strip with RAM / CPU / inference / GPU load and battery.
+  a warmed-up GPU, priority and Windows EcoQoS options, and a monitor strip: a live waveform of the captured audio
+  (grey until inference has covered it, then blue; a green line where the VAD heard speech), then RAM, CPU, GPU,
+  inference load, real-time factor and power, each in a fixed place.
   Optional automatic adaptation (Streaming page, off by default): when runs take longer than the step allows, the step
   grows (up to a limit), so text comes later but the delay stops growing; VAD-chunked spaces out its previews.
 - **Captions**: floating window (always on top, click-through, colours, opacity, font, lines) or docked in the main window,

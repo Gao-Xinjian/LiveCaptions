@@ -448,6 +448,26 @@ TABLE = {
     'Download and use': '下载并使用',
     'Cancel': '取消',
     'the speech detector': '语音检测模型',
+    # Pages split from "VAD & filters".
+    'VAD': '语音检测',
+    'Filters': '幻觉过滤',
+    # Monitor strip.
+    'Load': '负载',
+    'Power': '电量',
+    '(AC)': '（接电）',
+    'Plugged in': '已接电源',
+    'On battery': '使用电池',
+    'Real-time factor: seconds of inference per second of audio. Below 1 keeps up.':
+        '实时率：每秒音频需要的推理秒数。低于 1 才跟得上。',
+    'The audio being captured, newest on the right: grey until inference has covered it, then blue.':
+        '正在采集的音频，最新的在右边：还没推理的是灰色，推理过的变成蓝色。',
+    'Speech detection under the waveform': '在音波下方显示语音检测',
+    'A green line under the waveform where the VAD heard speech.': '在音波下方用绿线标出 VAD 听到语音的地方。',
+    'Load (inference)': '负载（推理）',
+    'Share of time spent in inference.': '推理所占的时间比例。',
+    'Real-time factor (RTF)': '实时率（RTF）',
+    'Seconds of inference per second of audio. Below 1 keeps up.': '每秒音频需要的推理秒数。低于 1 才跟得上。',
+    'Battery charge, and whether the laptop is plugged in.': '电池电量，以及是否接了电源。',
     # Sharing.
     'Sharing': '共享',
     'Share the captions in a web page': '用网页共享字幕',

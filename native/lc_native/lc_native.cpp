@@ -119,7 +119,7 @@ void LcLog(int level, const char * fmt, ...) {
 
 extern "C" {
 
-int32_t lc_version(void) { return 2; }
+int32_t lc_version(void) { return 3; }   // 3: lc_audio_levels, lc_audio_position
 
 int32_t lc_system_audio_available(void) {
 #ifdef _WIN32
@@ -208,6 +208,7 @@ lc_audio * lc_audio_open(const lc_audio_params * p, char * err, int32_t err_len)
     auto * a         = new lc_audio();
     a->channel_mode  = std::clamp((int) p->channel_mode, 0, 2);
     a->ring.assign((size_t) std::max(1000, (int) p->ring_ms) * kRate / 1000, 0.0f);
+    a->levels.assign(kLcLevelCap, 0.0f);
     a->last_ns       = NowNs();
 #ifdef __APPLE__
     if (p->kind == 1) {   // system audio: miniaudio has no loopback on macOS, a process tap does it
@@ -288,6 +289,23 @@ int32_t lc_audio_read(lc_audio * a, float * dst, int32_t max, int32_t timeout_ms
 double lc_audio_idle_seconds(lc_audio * a) { return (double) (NowNs() - a->last_ns.load()) * 1e-9; }
 
 int64_t lc_audio_dropped(lc_audio * a) { return a->dropped.load(); }
+
+int32_t lc_audio_levels(lc_audio * a, uint64_t since, float * out, int32_t max, uint64_t * total) {
+    std::lock_guard<std::mutex> lock(a->mu);
+    const uint64_t cap = a->levels.size();
+    const uint64_t end = a->level_total;
+    uint64_t       from = std::max(since, end > cap ? end - cap : 0);
+    if (max >= 0 && end - std::min(from, end) > (uint64_t) max) from = end - (uint64_t) max;
+    int32_t n = 0;
+    for (uint64_t i = from; i < end; i++) out[n++] = a->levels[i % cap];
+    if (total) *total = end;
+    return n;
+}
+
+uint64_t lc_audio_position(lc_audio * a) {
+    std::lock_guard<std::mutex> lock(a->mu);
+    return a->pushed - a->size;
+}
 
 int32_t lc_audio_flags(lc_audio * a) { return a->flags.load(); }
 

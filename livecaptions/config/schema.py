@@ -295,12 +295,18 @@ class ShareCfg:
 @dataclass
 class MonitorCfg:
     enabled: bool = opt(True, 'Show the monitor strip', live=True)
-    show_wave: bool = opt(True, 'Waveform', live=True)
-    show_vad: bool = opt(True, 'Speech detection', live=True)
+    show_wave: bool = opt(True, 'Waveform', live=True,
+                          tip='The audio being captured, newest on the right: grey until inference has covered it, '
+                              'then blue.')
+    show_vad: bool = opt(True, 'Speech detection under the waveform', live=True,
+                         tip='A green line under the waveform where the VAD heard speech.')
     show_ram: bool = opt(True, 'Memory', live=True)
     show_cpu: bool = opt(True, 'CPU', live=True)
-    show_busy: bool = opt(True, 'Inference load', live=True)
     show_gpu: bool = opt(True, 'GPU (Windows)', live=True)
+    show_busy: bool = opt(True, 'Load (inference)', live=True, tip='Share of time spent in inference.')
+    show_rtf: bool = opt(True, 'Real-time factor (RTF)', live=True,
+                         tip='Seconds of inference per second of audio. Below 1 keeps up.')
+    show_power: bool = opt(True, 'Power', live=True, tip='Battery charge, and whether the laptop is plugged in.')
     wave_s: float = opt(6.0, 'Waveform length', lo=1.0, hi=60.0, step=1.0, unit='s', decimals=0, live=True)
     fps: int = opt(25, 'Waveform frame rate', lo=5, hi=30, unit='fps', live=True)
     sample_s: float = opt(1.0, 'Resource sampling interval', lo=0.5, hi=10.0, step=0.5, unit='s', decimals=1, live=True)

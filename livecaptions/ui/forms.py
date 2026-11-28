@@ -4,7 +4,7 @@ import dataclasses
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFileDialog, QFontComboBox,
-                               QFormLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit, QLabel, QLineEdit,
+                               QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QKeySequenceEdit, QLabel, QLineEdit,
                                QPlainTextEdit, QPushButton, QSpinBox, QToolButton, QVBoxLayout, QWidget)
 
 from livecaptions.ui.i18n import tr
@@ -70,21 +70,30 @@ class LinesEdit(QPlainTextEdit):
 class MultiCheck(QWidget):
     changed = Signal(list)
 
-    def __init__(self, choices, values):
+    def __init__(self, choices, values, columns=2):
         super().__init__()
-        lay = QHBoxLayout(self)
+        lay = QGridLayout(self)   # a few columns, not one long row that would widen the window
         lay.setContentsMargins(0, 0, 0, 0)
         self.boxes = []
-        for val, label in choices:
+        for i, (val, label) in enumerate(choices):
             cb = QCheckBox(tr(label))
             cb.setChecked(val in values)
             cb.toggled.connect(self._emit)
             self.boxes.append((val, cb))
-            lay.addWidget(cb)
-        lay.addStretch(1)
+            lay.addWidget(cb, i // columns, i % columns)
+        lay.setColumnStretch(columns, 1)
 
     def _emit(self):
         self.changed.emit([v for v, cb in self.boxes if cb.isChecked()])
+
+
+def allow_shrink(combo, chars=10):
+    """
+    Let a combo box shrink below its longest entry when the window is narrow (the closed box then cuts the text
+    short; the open list still shows it whole). It keeps its natural width when there is room.
+    """
+    combo.setMinimumWidth(min(combo.sizeHint().width(), combo.fontMetrics().averageCharWidth() * chars + 40))
+    return combo
 
 
 def make_combo(choices, value, editable=False):
@@ -98,7 +107,7 @@ def make_combo(choices, value, editable=False):
         combo.setCurrentIndex(idx)
     elif editable:
         combo.setEditText(str(value))
-    return combo
+    return allow_shrink(combo)
 
 
 class SectionForm(QWidget):
@@ -228,7 +237,7 @@ class SectionForm(QWidget):
                 w.setCurrentIndex(-1)
                 w.lineEdit().setPlaceholderText(tr('Default'))
             w.currentTextChanged.connect(lambda v, n=name: self._set(n, v))
-            return w
+            return allow_shrink(w, 16)
         if kind == 'hotkey':
             w = QKeySequenceEdit(QKeySequence(value))
             w.setClearButtonEnabled(True)

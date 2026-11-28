@@ -58,6 +58,9 @@ class SharePanel(QGroupBox):
         for w in (self.code, self.b_code):
             w.setVisible(show_code)
         self.update_status()
+        main = getattr(self.ctl, 'main', None)
+        if main is not None:   # the links can make the page wider; measure once Qt has laid them out
+            QTimer.singleShot(0, main.update_page_width)
 
     def update_status(self):
         share = self.ctl.share

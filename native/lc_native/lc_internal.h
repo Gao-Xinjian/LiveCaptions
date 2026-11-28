@@ -21,15 +21,19 @@
 #define MA_NO_ENGINE
 #include "miniaudio.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
 #include <string>
 #include <vector>
 
-constexpr int kLcRate = 16000;  // Hz, what Whisper expects
+constexpr int kLcRate = 16000;           // Hz, what Whisper expects
+constexpr int kLcLevelSamples = 160;     // one waveform column per 10 ms
+constexpr size_t kLcLevelCap = 6000;     // columns kept: 60 s
 
 struct lc_audio {
     ma_context ctx{};
@@ -44,6 +48,12 @@ struct lc_audio {
     std::vector<float>      ring;       // capacity = ring.size()
     size_t                  head = 0;   // read position
     size_t                  size = 0;   // samples waiting
+    uint64_t                pushed = 0; // samples ever pushed; minus size = capture position of the next read
+    // Peak per 10 ms as the audio arrives, for a live waveform that does not wait for the reader.
+    std::vector<float>      levels;     // capacity = levels.size(), indexed by column % capacity
+    uint64_t                level_total = 0;
+    float                   level_peak  = 0.0f;
+    int                     level_fill  = 0;
 
     std::atomic<int64_t> last_ns{0};
     std::atomic<int64_t> dropped{0};
@@ -77,9 +87,18 @@ inline void LcPushSamples(lc_audio * a, const float * in, uint64_t frames, int s
                 a->size--;
                 a->dropped++;
             }
-            a->ring[(a->head + a->size) % cap] = in[i * (uint64_t) step + (uint64_t) pick];
+            const float x = in[i * (uint64_t) step + (uint64_t) pick];
+            a->ring[(a->head + a->size) % cap] = x;
             a->size++;
+            a->level_peak = std::max(a->level_peak, std::fabs(x));
+            if (++a->level_fill == kLcLevelSamples && !a->levels.empty()) {
+                a->levels[a->level_total % a->levels.size()] = a->level_peak;
+                a->level_total++;
+                a->level_peak = 0.0f;
+                a->level_fill = 0;
+            }
         }
+        a->pushed += frames;
     }
     a->last_ns = LcNowNs();
     a->cv.notify_one();

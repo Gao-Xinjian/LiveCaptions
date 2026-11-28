@@ -10,14 +10,13 @@ import time
 import numpy as np
 
 from livecaptions import SAMPLE_RATE
-from livecaptions.audio.capture import FLAG_REROUTED, FLAG_STOPPED, NativeCapture
+from livecaptions.audio.capture import FLAG_REROUTED, FLAG_STOPPED, LEVEL_SAMPLES, NativeCapture
 from livecaptions.config.store import get_models_dir
 from livecaptions.engines import create_engine
 from livecaptions.output.session import SessionWriter
 from livecaptions.segmentation import create_policy
 from livecaptions.vad import create_vad
 
-PEAK_COL = 160  # samples per waveform column (10 ms)
 
 
 class EngineHolder:
@@ -136,10 +135,17 @@ class Pipeline:
         self.step_s, self.step_adapted = pol.step_s, pol.step_s > pol.step_base_s + 0.05
         self.step_max_s = max(self.step_max_s, pol.step_s)
 
-    def _emit_level(self, chunk, vad, ep):
-        n = len(chunk) // PEAK_COL * PEAK_COL
-        peaks = np.abs(chunk[:n]).reshape(-1, PEAK_COL).max(axis=1) if n else np.zeros(0, np.float32)
-        self.emit('level', {'peaks': peaks, 'vad': ep.last_prob, 'speech': ep.speaking})
+    def _emit_progress(self, source, n_samples):
+        """
+        Tell the waveform, in its 10 ms columns of capture position, whether the VAD took the chunk just read for
+        speech and how far inference has got (the audio the last run covered, or that was dropped as silence).
+        The waveform itself comes from the capture, so it keeps moving while a run blocks this thread.
+        """
+        end = source.position()
+        offset = end - self.policy.total   # capture position minus the policy's own count (pauses drop audio)
+        self.emit('level', {'start_col': (end - n_samples) // LEVEL_SAMPLES, 'end_col': end // LEVEL_SAMPLES,
+                            'speech': self.policy.ep.speaking, 'vad': self.policy.ep.last_prob,
+                            'done_col': (self.policy.last_run_end + offset) // LEVEL_SAMPLES})
 
     def _run(self):
         cfg = self.cfg
@@ -198,7 +204,7 @@ class Pipeline:
                 out = self.policy.process(chunk, vres, source.idle_seconds())
                 self._handle(out, session)
                 if len(chunk):
-                    self._emit_level(chunk, vad, self.policy.ep)
+                    self._emit_progress(source, len(chunk))
                 if session is not None:
                     session.maybe_flush()
                 # Device problems.

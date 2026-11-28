@@ -1,6 +1,7 @@
 """Audio sources for the pipeline: live capture through lc_native, or a WAV file replayed in real time."""
 import ctypes as C
 import sys
+import threading
 import time
 import wave
 
@@ -11,6 +12,8 @@ from livecaptions.audio.devices import hex2id, supports_system_audio
 
 FLAG_STOPPED = 1   # the device stopped by itself (unplugged, driver error)
 FLAG_REROUTED = 2  # the default device changed and capture followed it
+LEVEL_SAMPLES = 160       # samples per waveform column: 10 ms (lc_native kLcLevelSamples)
+LEVEL_COLS_MAX = 6000     # columns lc_native keeps: 60 s
 
 
 class NativeCapture:
@@ -35,6 +38,8 @@ class NativeCapture:
             raise native.NativeError(native.err2str(err))
         self._buf = (C.c_float * max_read)()
         self._max = max_read
+        self._levels = (C.c_float * LEVEL_COLS_MAX)()
+        self._close_lock = threading.Lock()   # the UI reads levels while the pipeline thread may close
         self.finished = False  # a live device never runs out
 
     def start(self):
@@ -58,10 +63,29 @@ class NativeCapture:
     def dropped(self):
         return self.lib.lc_audio_dropped(self.handle)
 
+    def position(self):
+        """Return the capture position (samples since the device was opened) of the next sample read() returns."""
+        return self.lib.lc_audio_position(self.handle)
+
+    def levels(self, since):
+        """
+        Return the peak of each 10 ms column captured since column `since`, as it arrives (any thread).
+
+        Returns:
+            (peaks, first): float32 array and the column number of its first value; empty once closed
+        """
+        with self._close_lock:
+            if not self.handle:
+                return np.zeros(0, np.float32), since
+            total = C.c_uint64()
+            n = self.lib.lc_audio_levels(self.handle, since, self._levels, LEVEL_COLS_MAX, C.byref(total))
+            return np.ctypeslib.as_array(self._levels)[:n].copy(), total.value - n
+
     def close(self):
-        if self.handle:
-            self.lib.lc_audio_close(self.handle)
-            self.handle = None
+        with self._close_lock:
+            if self.handle:
+                self.lib.lc_audio_close(self.handle)
+                self.handle = None
 
 
 def read_wav(path):
@@ -131,6 +155,19 @@ class WavFileSource:
 
     def dropped(self):
         return 0
+
+    def position(self):
+        return self.pos
+
+    def levels(self, since):
+        """Like NativeCapture.levels: the columns 'captured' so far by the clock (all that was read at speed 0)."""
+        live = self.pos
+        if self.speed > 0 and self.t_start is not None:
+            live = min(len(self.samples), int((time.perf_counter() - self.t_start) * self.speed * SAMPLE_RATE))
+        first = max(since, live // LEVEL_SAMPLES - LEVEL_COLS_MAX)
+        n = max(0, live // LEVEL_SAMPLES - first)
+        cols = self.samples[first * LEVEL_SAMPLES:(first + n) * LEVEL_SAMPLES].reshape(n, LEVEL_SAMPLES)
+        return np.abs(cols).max(axis=1) if n else np.zeros(0, np.float32), first
 
     def close(self):
         pass

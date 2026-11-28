@@ -48,6 +48,7 @@ class GpuInfo(C.Structure):
 
 _STRUCTS = [DeviceInfo, AudioParams, DecodeParams, TokenInfo, GpuInfo]  # order of lc_struct_sizes
 
+LIB_VERSION = 3   # lc_version() of the library this module expects
 _P = C.c_void_p
 _SIGNATURES = {
     'lc_version': (C.c_int32, []),
@@ -64,6 +65,8 @@ _SIGNATURES = {
     'lc_audio_read': (C.c_int32, [_P, C.POINTER(C.c_float), C.c_int32, C.c_int32]),
     'lc_audio_idle_seconds': (C.c_double, [_P]),
     'lc_audio_dropped': (C.c_int64, [_P]),
+    'lc_audio_levels': (C.c_int32, [_P, C.c_uint64, C.POINTER(C.c_float), C.c_int32, C.POINTER(C.c_uint64)]),
+    'lc_audio_position': (C.c_uint64, [_P]),
     'lc_audio_flags': (C.c_int32, [_P]),
     'lc_audio_close': (None, [_P]),
     'lc_whisper_load': (_P, [C.c_char_p, C.c_int32, C.c_int32, C.c_int32, C.c_char_p, C.c_int32]),
@@ -117,6 +120,10 @@ def load_lib():
         if sys.platform == 'win32':
             os.add_dll_directory(os.path.dirname(path))
         lib = C.CDLL(path)
+        lib.lc_version.restype = C.c_int32
+        if lib.lc_version() < LIB_VERSION:   # an older build lacks functions this app calls
+            raise NativeError(f'lc_native at {path} is version {lib.lc_version()}, this app needs {LIB_VERSION}: '
+                              'rebuild it with python scripts/build_native.py')
         for fn_name, (restype, argtypes) in _SIGNATURES.items():
             fn = getattr(lib, fn_name)
             fn.restype = restype

@@ -100,6 +100,11 @@ LC_API int32_t    lc_audio_stop(lc_audio *a);
 LC_API int32_t    lc_audio_read(lc_audio *a, float *dst, int32_t max, int32_t timeout_ms);   // samples read, 0 on timeout
 LC_API double     lc_audio_idle_seconds(lc_audio *a);   // time since the device last delivered data
 LC_API int64_t    lc_audio_dropped(lc_audio *a);        // samples lost because the ring buffer was full
+// Peak level per 10 ms column as the audio arrives (for a live waveform; takes nothing from the ring): copies the
+// columns from `since` on, at most the newest `max`, returns how many; *total = columns produced so far.
+LC_API int32_t    lc_audio_levels(lc_audio *a, uint64_t since, float *out, int32_t max, uint64_t *total);
+// Capture position (samples since open) of the next sample lc_audio_read returns; overflow and stops count too.
+LC_API uint64_t   lc_audio_position(lc_audio *a);
 LC_API int32_t    lc_audio_flags(lc_audio *a);          // 1 = device stopped unexpectedly, 2 = rerouted
 LC_API void       lc_audio_close(lc_audio *a);
 

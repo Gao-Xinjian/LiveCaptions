@@ -171,7 +171,7 @@ class Controller(QObject):
         elif kind == 'lines':
             self.bus.send_lines(payload)
         elif kind == 'level':
-            self.main.monitor.add_level(payload)
+            self.main.monitor.add_progress(payload)
         elif kind == 'status':
             text = {'loading': tr('Loading the model…'), 'paused': tr('Paused'),
                     'running': tr('Listening') + ' · ' + self.engine_desc}.get(payload, payload)
@@ -182,6 +182,7 @@ class Controller(QObject):
         elif kind == 'started':
             self.engine_desc = payload['engine']
             self.session_dir = payload['session']
+            self.main.monitor.wave.set_source(self.pipeline.source)   # the waveform reads the capture directly
             self.bus.send_session('started', name=os.path.basename(payload['session']), engine=self.engine_desc)
             src = tr('microphone') if self.cfg.audio.source == 'mic' else tr('system audio')
             self.main.set_status(tr('Listening to the') + f' {src} · {self.engine_desc}')
@@ -195,6 +196,7 @@ class Controller(QObject):
             self.main.set_status(tr('Error:') + ' ' + str(payload))
             self.tray.showMessage('LiveCaptions', tr('Error:') + ' ' + str(payload))
         elif kind == 'stopped':
+            self.main.monitor.wave.set_source(None)
             self.bus.send_session('stopped')
             self.last_session_dir = payload.get('session') or self.last_session_dir
             self.session_dir = ''
