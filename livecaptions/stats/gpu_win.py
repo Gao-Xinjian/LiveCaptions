@@ -4,6 +4,7 @@ from ctypes import wintypes as W
 
 PDH_FMT_DOUBLE = 0x00000200
 PDH_MORE_DATA = 0x800007D2
+PDH_CSTATUS_NEW_DATA = 1   # 0 = valid data, 1 = new data; higher = no usable value
 ERROR_SUCCESS = 0
 
 
@@ -20,6 +21,9 @@ class GpuUsage:
 
     def __init__(self, pid):
         self.pdh = C.WinDLL('pdh')
+        for fn in ('PdhOpenQueryW', 'PdhAddEnglishCounterW', 'PdhCollectQueryData', 'PdhGetFormattedCounterArrayW',
+                   'PdhCloseQuery'):   # PDH status codes such as PDH_MORE_DATA have the high bit set: read them unsigned
+            getattr(self.pdh, fn).restype = W.DWORD
         self.query = C.c_void_p()
         self.counter = C.c_void_p()
         self.ok = False
@@ -46,6 +50,8 @@ class GpuUsage:
         items = C.cast(buf, C.POINTER(_FmtItem))
         per_type = {}  # engine type -> summed utilisation
         for i in range(count.value):
+            if items[i].FmtValue.CStatus > PDH_CSTATUS_NEW_DATA:   # e.g. an engine that appeared since the last sample
+                continue
             name = items[i].szName or ''
             eng = name.split('engtype_')[-1] if 'engtype_' in name else 'other'
             per_type[eng] = per_type.get(eng, 0.0) + max(0.0, items[i].FmtValue.doubleValue)
