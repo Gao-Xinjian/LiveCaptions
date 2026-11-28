@@ -32,7 +32,7 @@ livecaptions = "livecaptions.main:main"
 include = ["livecaptions*"]
 
 [tool.setuptools.package-data]
-livecaptions = ["bin/*", "models/registry.json"]
+livecaptions = ["bin/*", "models/registry.json", "forward/web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

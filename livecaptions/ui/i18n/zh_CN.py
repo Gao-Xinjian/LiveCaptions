@@ -448,4 +448,34 @@ TABLE = {
     'Download and use': '下载并使用',
     'Cancel': '取消',
     'the speech detector': '语音检测模型',
+    # Sharing.
+    'Sharing': '共享',
+    'Share the captions in a web page': '用网页共享字幕',
+    'A read-only page with the live captions (white final text, grey unfinished text) for browsers on this computer '
+    'and, if allowed, on the local network. Programs, such as a chatbot later, can read /events and /transcript.txt.':
+        '一个只读网页，实时显示字幕（白字定稿，灰字未定稿），供本机浏览器查看；允许后，局域网里的设备也能查看。'
+        '其他程序（例如以后的 chatbot）可以读取 /events 和 /transcript.txt。',
+    'Allow devices on the local network': '允许局域网里的设备访问',
+    'Phones and computers on the same network can open the page. The first time, Windows asks to let the app through '
+    'its firewall.': '同一网络下的手机和电脑都能打开这个网页。第一次开启时，Windows 会询问是否允许本程序通过防火墙。',
+    'Port': '端口',
+    'Local network needs the access code': '局域网访问需要访问码',
+    'The links below contain it. This computer never needs it.': '下面的链接里已经带上访问码。本机访问不需要。',
+    'Also send the grey unfinished text': '同时发送灰色的未定稿文字',
+    'Send unfinished text at most every': '未定稿文字最快发送间隔',
+    'Links': '链接',
+    'New code': '更换访问码',
+    'For programs, such as a chatbot: /events (live events), /transcript.txt and /transcript.json under the same address.':
+        '供程序（例如 chatbot）使用：同一地址下的 /events（实时事件）、/transcript.txt 和 /transcript.json。',
+    'Sharing is off.': '共享未开启。',
+    'Copy': '复制',
+    'Open': '打开',
+    'Access code:': '访问码：',
+    'This computer': '本机',
+    'Local network': '局域网',
+    'Could not start the page:': '网页无法启动：',
+    'used by another program; choose another port.': '已被其他程序占用，请换一个端口。',
+    'Connected:': '连接数：',
+    'Other devices must be on the same network and use a link below.': '其他设备需要连在同一网络，并使用下面的链接。',
+    'The page is running.': '网页正在运行。',
 }

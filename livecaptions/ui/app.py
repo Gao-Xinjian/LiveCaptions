@@ -1,5 +1,6 @@
 """The controller: owns the settings, the pipeline, the windows, the tray and the hotkeys."""
 import dataclasses
+import errno
 import os
 import time
 
@@ -10,6 +11,8 @@ from PySide6.QtWidgets import QMessageBox
 from livecaptions import native
 from livecaptions.config import store
 from livecaptions.config.schema import Config
+from livecaptions.forward.bus import CaptionBus
+from livecaptions.forward.server import ShareServer, make_code
 from livecaptions.pipeline import EngineHolder, Pipeline
 from livecaptions.power import apply_power_settings
 from livecaptions.stats.sampler import ResourceSampler
@@ -58,6 +61,14 @@ class Controller(QObject):
         self.caption_win.geometry_changed.connect(self._remember_geometry)
         self.tray = Tray()
         self.tray.action.connect(self.on_tray)
+        # Sharing: the bus forwards caption events; the share server is one of its outputs.
+        self.bus = CaptionBus()
+        self.share = None
+        self.share_error = ''
+        self.share_timer = QTimer(self)   # a port being typed restarts the server once, when the typing stops
+        self.share_timer.setSingleShot(True)
+        self.share_timer.setInterval(800)
+        self.share_timer.timeout.connect(self.apply_share)
         self.main = MainWindow(self)
         self.main.setting_changed.connect(self.on_setting_changed)
         self.main.terms_changed.connect(self.on_terms_changed)
@@ -77,6 +88,7 @@ class Controller(QObject):
         # Show.
         self.apply_dock()
         self.register_hotkeys()
+        self.apply_share()
         self.tray.show()
         if not (cfg.general.start_minimized and self.tray.isVisible()):
             self.main.show()
@@ -152,8 +164,12 @@ class Controller(QObject):
     def on_event(self, kind, payload):
         if kind == 'commit':
             self.view.add_committed(payload)
+            self.bus.send_final(payload, self.pipeline.audio_s if self.pipeline is not None else 0.0)
         elif kind == 'tentative':
             self.view.set_tentative(payload)
+            self.bus.send_partial(payload)
+        elif kind == 'lines':
+            self.bus.send_lines(payload)
         elif kind == 'level':
             self.main.monitor.add_level(payload)
         elif kind == 'status':
@@ -161,9 +177,12 @@ class Controller(QObject):
                     'running': tr('Listening') + ' · ' + self.engine_desc}.get(payload, payload)
             self.main.set_status(text)
             self._update_state()
+            if payload in ('paused', 'running'):
+                self.bus.send_session(payload)
         elif kind == 'started':
             self.engine_desc = payload['engine']
             self.session_dir = payload['session']
+            self.bus.send_session('started', name=os.path.basename(payload['session']), engine=self.engine_desc)
             src = tr('microphone') if self.cfg.audio.source == 'mic' else tr('system audio')
             self.main.set_status(tr('Listening to the') + f' {src} · {self.engine_desc}')
             self.main.update_translate_hint(payload['can_translate'])
@@ -176,6 +195,7 @@ class Controller(QObject):
             self.main.set_status(tr('Error:') + ' ' + str(payload))
             self.tray.showMessage('LiveCaptions', tr('Error:') + ' ' + str(payload))
         elif kind == 'stopped':
+            self.bus.send_session('stopped')
             self.last_session_dir = payload.get('session') or self.last_session_dir
             self.session_dir = ''
             if not self.main.status.text().startswith(tr('Error:')):
@@ -251,6 +271,13 @@ class Controller(QObject):
             if self.is_running():
                 self.pipeline.set_terms(store.load_terms(self.cfg.terms.profile))
             self.main._update_token_count()
+        elif section == 'share':
+            if name == 'port':
+                self.share_timer.start()
+            elif name in ('enabled', 'lan'):
+                self.apply_share()
+            elif hasattr(self.main, 'share_panel'):
+                self.main.share_panel.refresh()
         if self.is_running() and not self._is_live(section, name):
             self.main.set_status(tr('This change applies at the next Start.'))
 
@@ -275,6 +302,7 @@ class Controller(QObject):
         self.caption_win.apply_flags()
         self.apply_dock()
         self.register_hotkeys()
+        self.apply_share()
 
     def set_caption_opt(self, name, value):
         setattr(self.cfg.caption, name, value)
@@ -298,6 +326,36 @@ class Controller(QObject):
             if self.is_running():
                 self.caption_win.show()
         self.view.apply_style()
+
+    def apply_share(self):
+        """Start, restart or stop the share server to match the settings."""
+        sc = self.cfg.share
+        if self.share is not None and (not sc.enabled or self.share.lan != sc.lan or self.share.port != sc.port):
+            self.bus.remove(self.share)
+            self.share = None
+        self.share_error = ''
+        if sc.enabled and self.share is None:
+            if not sc.code:
+                sc.code = make_code()
+                self.save_timer.start()
+            try:
+                self.share = ShareServer(sc)
+            except OSError as e:
+                in_use = e.errno == errno.EADDRINUSE or getattr(e, 'winerror', None) == 10048
+                self.share_error = tr('Port') + f' {sc.port}: ' + (tr('used by another program; choose another port.')
+                                                                    if in_use else (e.strerror or str(e)))
+            else:
+                self.bus.add(self.share)
+                if self.is_running():   # the page starts from here; text from before is not resent
+                    self.bus.send_session('paused' if self.is_paused() else 'running', engine=self.engine_desc)
+        if hasattr(self.main, 'share_panel'):
+            self.main.share_panel.refresh()
+
+    def new_share_code(self):
+        """Replace the access code; links with the old one stop working at once."""
+        self.cfg.share.code = make_code()
+        self.save_timer.start()
+        self.main.share_panel.refresh()
 
     def register_hotkeys(self):
         cc = self.cfg.caption
@@ -340,6 +398,8 @@ class Controller(QObject):
             self.pipeline.stop()
             self.pipeline.join(5.0)
         self.hotkeys.clear()
+        self.bus.close()   # stops the share server
+        self.share = None
         store.save_config(self.cfg)
         self.holder.unload()
         self.tray.hide()

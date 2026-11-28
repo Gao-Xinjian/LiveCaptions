@@ -275,6 +275,24 @@ class CaptionCfg:
 
 
 @dataclass
+class ShareCfg:
+    enabled: bool = opt(False, 'Share the captions in a web page', live=True,
+                        tip='A read-only page with the live captions (white final text, grey unfinished text) for browsers '
+                            'on this computer and, if allowed, on the local network. Programs, such as a chatbot later, '
+                            'can read /events and /transcript.txt.')
+    lan: bool = opt(False, 'Allow devices on the local network', live=True,
+                    tip='Phones and computers on the same network can open the page. The first time, Windows asks to let '
+                        'the app through its firewall.')
+    port: int = opt(8765, 'Port', lo=1024, hi=65535, live=True)
+    use_code: bool = opt(True, 'Local network needs the access code', live=True,
+                         tip='The links below contain it. This computer never needs it.')
+    code: str = opt('', kind='hidden')
+    send_partial: bool = opt(True, 'Also send the grey unfinished text', live=True)
+    partial_interval_s: float = opt(0.5, 'Send unfinished text at most every', lo=0.1, hi=5.0, step=0.1, unit='s',
+                                    decimals=1, advanced=True, live=True)
+
+
+@dataclass
 class MonitorCfg:
     enabled: bool = opt(True, 'Show the monitor strip', live=True)
     show_wave: bool = opt(True, 'Waveform', live=True)
@@ -312,6 +330,7 @@ class Config:
     terms: TermsCfg = field(default_factory=TermsCfg)
     save: SaveCfg = field(default_factory=SaveCfg)
     caption: CaptionCfg = field(default_factory=CaptionCfg)
+    share: ShareCfg = field(default_factory=ShareCfg)
     monitor: MonitorCfg = field(default_factory=MonitorCfg)
     general: GeneralCfg = field(default_factory=GeneralCfg)
 

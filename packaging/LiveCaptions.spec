@@ -23,7 +23,8 @@ lib_path = os.path.join(ROOT, 'livecaptions', 'bin', lib_name)
 if not os.path.exists(lib_path):
     raise SystemExit(f'{lib_path} is missing: run python scripts/build_native.py first')
 
-datas = [(os.path.join(ROOT, 'livecaptions', 'models', 'registry.json'), 'livecaptions/models')]
+datas = [(os.path.join(ROOT, 'livecaptions', 'models', 'registry.json'), 'livecaptions/models'),
+         (os.path.join(ROOT, 'livecaptions', 'forward', 'web', 'index.html'), 'livecaptions/forward/web')]   # the shared page
 datas += collect_data_files('opencc', includes=['clib/share/**'])  # OpenCC's conversion dictionaries
 if opts.licenses:
     datas.append((opts.licenses, 'licenses'))

@@ -2,7 +2,7 @@
 The pipeline thread: audio source -> VAD -> streaming policy -> engine -> filters -> writers -> events.
 
 No Qt here: events go to a callback emit(kind, payload), which the UI turns into queued Qt signals.
-Event kinds: status, error, warning, started, level, commit, tentative, stats, stopped.
+Event kinds: status, error, warning, started, level, commit, tentative, lines, stats, stopped.
 """
 import threading
 import time
@@ -122,8 +122,10 @@ class Pipeline:
             self.emit('commit', out.committed)
         if out.tentative is not None:
             self.emit('tentative', out.tentative)
-        if session is not None and out.lines:
-            session.write_lines(out.lines)
+        if out.lines:
+            if session is not None:
+                session.write_lines(out.lines)
+            self.emit('lines', list(out.lines))   # finished lines with their times, for sharing
         self.busy_s += out.busy_s
         self.runs += out.runs
         self.run_audio_s += out.audio_s

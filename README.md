@@ -21,6 +21,8 @@ or [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
   scroll back and copy. Start/pause, stop, show/hide and click-through are buttons in the main window and the tray
   menu; optional hotkeys too (global on Windows, only while the app is active on macOS).
 - **Saving**: per session folder with audio (WAV, FLAC, Opus) and transcripts (txt, srt, vtt, jsonl, md), written as it goes.
+- **Sharing**: a read-only web page with the live captions (final and grey unfinished text) for browsers on this
+  computer or the local network, plus an event stream and the transcript for programs such as a chatbot.
 - **Terms**: per-course term profiles in Whisper's prompt (also as faster-whisper hotwords), editable while running.
 - **Options**: every setting is in the settings window, with tooltips; no built-in modes. English and 简体中文 interface.
 
@@ -84,6 +86,30 @@ the native library, both backends, the bundled data, one transcription and the w
 CI uploads both zips as artifacts. The macOS app is not signed by Apple: after unzipping, open it with right-click →
 Open (or System Settings → Privacy & Security → Open Anyway), or run `xattr -dr com.apple.quarantine LiveCaptions.app`.
 As an app it asks for the microphone and system audio permissions under its own name.
+
+## Sharing
+
+Sharing page → *Share the captions in a web page* starts a small read-only web server in the app (port 8765). Open
+`http://127.0.0.1:8765/` on this computer (e.g. as an OBS browser source); with *Allow devices on the local network*
+the page shows links for phones and computers on the same network, which carry a 6-digit access code (this computer
+never needs it; Windows asks to let the app through its firewall the first time). Nothing can be sent to the app.
+
+| Address | Content |
+|---|---|
+| `/` | the live caption page (font size, light/dark, follows the newest text) |
+| `/events` | Server-Sent Events: `snapshot` (everything so far), then `final`, `partial`, `line`, `session`, `ping` |
+| `/transcript.txt`, `/transcript.json` | the final text of the current session (JSON with timed lines) |
+| `/api/state` | session state, number of connections, last event number |
+
+`final` carries newly final text (`
+` ends a line), `partial` the grey tail that replaces the previous one (at most
+every 0.5 s), `line` a finished line with its start and end in seconds, `session` started / paused / running /
+stopped, and while nothing happens `ping` every 10 s with the session, the last event number and the length of the
+final text. Events have ids, so a client that reconnects with `Last-Event-ID` gets only what it missed. The page
+reconnects by itself (and reloads the whole text) when it hears nothing for 25 s, when it returns from the
+background, or when a ping does not match what it has, so phones that slept catch up. Inside the app,
+an output is a `CaptionSink` on the `CaptionBus` (`livecaptions/forward/bus.py`); one doing slow work, such as a
+chatbot, derives from `QueuedSink`.
 
 ## Models
 
@@ -151,6 +177,7 @@ livecaptions/
   pipeline.py         capture -> VAD -> streaming policy -> engine -> filters -> writers, on its own thread
   config/             settings schema with UI metadata, TOML storage, term profiles
   audio/ vad/ engines/ segmentation/ filters/ output/ models/ stats/
+  forward/            caption bus, share server and its web page
   ui/                 Qt windows generated from the schema; i18n/zh_CN.py holds the Chinese text
 tools/replay.py
 tests/

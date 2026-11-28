@@ -17,6 +17,7 @@ from livecaptions.ui.forms import SectionForm
 from livecaptions.ui.i18n import tr
 from livecaptions.ui.model_widgets import ModelPicker
 from livecaptions.ui.monitor_strip import MonitorStrip
+from livecaptions.ui.share_panel import SharePanel
 from livecaptions.ui.tray import make_icon
 
 # (page title, [(section, group title)])
@@ -29,6 +30,7 @@ PAGES = [
     ('Terms', [('terms', '')]),
     ('Saving', [('save', '')]),
     ('Captions', [('caption', '')]),
+    ('Sharing', [('share', '')]),
     ('Monitor', [('monitor', '')]),
     ('General', [('general', '')]),
 ]
@@ -152,6 +154,9 @@ class MainWindow(QMainWindow):
                 lay.addWidget(form)
             if title == 'Terms':
                 lay.addWidget(self._build_terms_editor(), 1)
+            if title == 'Sharing':
+                self.share_panel = SharePanel(self.ctl)
+                lay.addWidget(self.share_panel)
             if title == 'General':
                 lay.addWidget(self._build_general_buttons())
                 if get_platform_note():

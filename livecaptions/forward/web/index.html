@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveCaptions</title>
+<style>
+  /* The colours live on <html>, which also paints the area below short text and the scroll bars. */
+  :root { --bg: #111; --fg: #f2f2f2; --grey: #8a8a8a; --bar: #1c1c1c; --line: #333; --accent: #6484C3; color-scheme: dark; }
+  :root.light { --bg: #fafafa; --fg: #111; --grey: #8a8a8a; --bar: #ececec; --line: #d4d4d4; color-scheme: light; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif; }
+  header { position: sticky; top: 0; display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+    background: var(--bar); border-bottom: 1px solid var(--line); font-size: 14px; }
+  #dot { width: 10px; height: 10px; border-radius: 50%; background: var(--grey); flex: none; }
+  #dot.live { background: #3cb371; }
+  #dot.off { background: #d9534f; }
+  #state { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  main { max-width: 60em; margin: 0 auto; padding: 16px 16px 64px; }
+  #text { font-size: var(--size, 28px); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #partial { color: var(--grey); }
+  #follow { position: fixed; right: 16px; bottom: 16px; display: none; color: #fff; background: var(--accent); border: none; }
+</style>
+</head>
+<body>
+<header>
+  <span id="dot"></span><span id="state"></span>
+  <button id="smaller">A−</button><button id="bigger">A+</button><button id="theme"></button>
+</header>
+<main><div id="text"><span id="final"></span><span id="partial"></span></div></main>
+<button id="follow"></button>
+<script>
+  // Live captions from LiveCaptions: final text in white, the unfinished tail in grey (it is replaced, not appended).
+  // Events (see forward/bus.py): snapshot, final, partial, session, ping; 'line' events are for programs.
+  const zh = (navigator.language || '').toLowerCase().startsWith('zh');
+  const T = zh
+    ? { waiting: '等待开始字幕', started: '正在识别', running: '正在识别', paused: '已暂停', stopped: '已停止',
+        offline: '连接中断，正在重连…', light: '浅色', dark: '深色', follow: '↓ 跟随最新' }
+    : { waiting: 'Waiting for captions', started: 'Live', running: 'Live', paused: 'Paused', stopped: 'Stopped',
+        offline: 'Connection lost, reconnecting…', light: 'Light', dark: 'Dark', follow: '↓ Follow' };
+  const $ = id => document.getElementById(id);
+  const finalNode = document.createTextNode('');
+  $('final').appendChild(finalNode);
+
+  function load(key, fallback) {
+    try { const v = localStorage.getItem('lc-' + key); return v === null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem('lc-' + key, JSON.stringify(value)); } catch (e) { /* private window */ }
+  }
+
+  let size = load('size', 28), light = load('light', false), state = 'waiting';
+  function applyView() {
+    document.documentElement.style.setProperty('--size', size + 'px');
+    document.documentElement.classList.toggle('light', light);
+    $('theme').textContent = light ? T.dark : T.light;
+    $('follow').textContent = T.follow;
+  }
+  function setState(s, online = true) {
+    if (online) state = s;
+    $('state').textContent = online ? (T[s] || T.waiting) : T.offline;
+    $('dot').className = online ? (s === 'started' || s === 'running' ? 'live' : '') : 'off';
+  }
+  $('smaller').onclick = () => { size = Math.max(12, size - 4); save('size', size); applyView(); };
+  $('bigger').onclick = () => { size = Math.min(96, size + 4); save('size', size); applyView(); };
+  $('theme').onclick = () => { light = !light; save('light', light); applyView(); };
+  applyView();
+  setState('waiting');
+
+  // Keep the newest text in view unless the reader scrolled up; the button brings them back.
+  const atBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 40;
+  const showFollow = on => { $('follow').style.display = on ? 'block' : 'none'; };
+  function update(change) {
+    const follow = atBottom();
+    change();
+    if (follow) window.scrollTo(0, document.documentElement.scrollHeight);
+    showFollow(!atBottom());   // also hidden when everything fits on the screen
+  }
+  window.addEventListener('scroll', () => { if (atBottom()) showFollow(false); });
+  window.addEventListener('resize', () => { if (atBottom()) showFollow(false); });
+  $('follow').onclick = () => { window.scrollTo(0, document.documentElement.scrollHeight); $('follow').style.display = 'none'; };
+
+  // The app breaks caption lines at a fixed length; the page lets the browser wrap instead and keeps only the breaks
+  // after a sentence. A broken line joins with a space, or with nothing between Chinese / Japanese / Korean text.
+  const SENTENCE_END = '.!?。！？…:：;；"”’)）]';
+  const isCJK = c => /[぀-ヿ㐀-鿿豈-﫿가-힯]/.test(c);
+  let prev = '';   // the last character shown as final text
+  function toDisplay(text) {
+    let out = '';
+    for (const c of text) {
+      if (c === '\n') {
+        if (SENTENCE_END.includes(prev)) { out += '\n'; prev = '\n'; }
+        else if (prev && prev !== ' ' && prev !== '\n' && !isCJK(prev)) { out += ' '; prev = ' '; }
+        continue;
+      }
+      if (c === ' ' && (prev === ' ' || prev === '\n' || prev === '')) continue;   // no double or leading spaces
+      out += c;
+      prev = c;
+    }
+    return out;
+  }
+  const partialDisplay = text => (prev === ' ' || prev === '\n' || prev === '') ? text.replace(/^ +/, '') : text;
+
+  // The connection. A page in the background or on a sleeping device can lose it without the browser noticing, and
+  // then nothing new arrives. So the page connects afresh when it has heard nothing for a while (the server pings every
+  // 10 s), when it comes back after being hidden, when the network returns, and when a ping shows that it missed an
+  // event. A fresh connection starts with a snapshot of the whole text, so the page matches the app again.
+  const code = new URLSearchParams(location.search).get('code');
+  const STALE_MS = 25000, HIDDEN_MS = 10000;
+  let source = null, lastHeard = Date.now(), hiddenAt = 0, lastSid = '', lastSeq = -1;
+  let receivedChars = 0;   // length of the final text received, in characters (as Python counts them)
+  const countChars = text => [...text].length;
+
+  function remember(e) {   // event ids are "session-number"; events without one keep the last id
+    lastHeard = Date.now();
+    const dash = (e.lastEventId || '').indexOf('-');
+    if (dash > 0) { lastSid = e.lastEventId.slice(0, dash); lastSeq = Number(e.lastEventId.slice(dash + 1)); }
+  }
+  function connect() {
+    if (source) source.close();
+    lastHeard = Date.now();
+    lastSid = '';
+    source = new EventSource('events' + (code ? '?code=' + encodeURIComponent(code) : ''));
+    source.addEventListener('snapshot', e => {
+      remember(e);
+      const d = JSON.parse(e.data);
+      prev = '';
+      receivedChars = countChars(d.text);
+      update(() => { finalNode.data = toDisplay(d.text); $('partial').textContent = partialDisplay(d.partial || ''); });
+      setState(d.session && d.session.state ? d.session.state : 'waiting');
+    });
+    source.addEventListener('final', e => {
+      remember(e);
+      const text = JSON.parse(e.data).text;
+      receivedChars += countChars(text);
+      update(() => finalNode.appendData(toDisplay(text)));
+    });
+    source.addEventListener('partial', e => {
+      remember(e);
+      update(() => { $('partial').textContent = partialDisplay(JSON.parse(e.data).text); });
+    });
+    source.addEventListener('session', e => { remember(e); setState(JSON.parse(e.data).state); });
+    source.addEventListener('ping', e => {   // where the app is; if the page is anywhere else, start over
+      lastHeard = Date.now();
+      const d = JSON.parse(e.data);
+      if (String(d.session) !== lastSid || d.seq !== lastSeq || d.chars !== receivedChars) connect();
+    });
+    source.onopen = () => { lastHeard = Date.now(); setState(state); };
+    source.onerror = () => setState(state, false);
+  }
+  setInterval(() => { if (Date.now() - lastHeard > STALE_MS) connect(); }, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) hiddenAt = Date.now();
+    else if (Date.now() - hiddenAt > HIDDEN_MS || Date.now() - lastHeard > STALE_MS) connect();
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) connect(); });   // restored from the back/forward cache
+  window.addEventListener('online', () => connect());
+  connect();
+</script>
+</body>
+</html>
